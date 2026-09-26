@@ -1,0 +1,18 @@
+## Build and output folders
+bin/
+obj/
+artifacts/
+
+## Visual Studio & VS Code cache
+.vs/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.user
+*.suo
+
+## MonoGame intermediate content
+Content/bin/
+Content/obj/
+.fake

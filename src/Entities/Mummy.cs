@@ -18,10 +18,10 @@ public sealed class Mummy
 
     private Vector2 _position;
     private Direction _facing;
-    private readonly float _minX;
-    private readonly float _maxX;
-    private readonly Vector2 _spawnPosition;
-    private readonly Direction _spawnFacing;
+    private float _minX;
+    private float _maxX;
+    private Vector2 _spawnPosition;
+    private Direction _spawnFacing;
 
     public Vector2 Position => _position;
     public Direction Facing => _facing;
@@ -36,6 +36,18 @@ public sealed class Mummy
         _maxX = maxX;
         _spawnFacing = initialFacing;
         _facing = initialFacing;
+    }
+
+    /// <summary>
+    /// Reconfigura los parámetros de spawn y límites de patrulla de la momia (por ejemplo al cambiar de recámara).
+    /// </summary>
+    public void Configure(float spawnX, float spawnY, float minX, float maxX, Direction initialFacing = Direction.Right)
+    {
+        _spawnPosition = new Vector2(spawnX, spawnY);
+        _minX = minX;
+        _maxX = maxX;
+        _spawnFacing = initialFacing;
+        Reset();
     }
 
     /// <summary>

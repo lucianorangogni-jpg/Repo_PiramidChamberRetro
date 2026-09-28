@@ -207,9 +207,9 @@ public sealed class RoomGrid
             SetTile(10, y, TileType.Ladder);
         }
 
-        // 6. Placa de presión sobre el suelo inferior
-        // Situada en (3, 13) para puzzle Sokoban con bloque empujable
-        SetTile(3, 13, TileType.PressurePlate);
+        // 6. Única losa de activación sobre el suelo inferior
+        // Situada en (8, 13) para conmutar el muro de la cámara del tesoro
+        SetTile(8, 13, TileType.PressurePlate);
 
         // 7. Puerta de salida en la plataforma superior Nivel 2
         // Situada en (1, 4), reposando sobre el descansillo de la celda (1, 5)

@@ -20,6 +20,8 @@ public sealed class PuzzleRenderer : IDisposable
     private readonly Texture2D _wallOpenTexture;
     private readonly Texture2D _stoneActiveTexture;
     private readonly Texture2D _keyTexture;
+    private readonly Texture2D _trapClosedTexture;
+    private readonly Texture2D _trapOpenTexture;
 
     private Rectangle _destRect = new(0, 0, GameConstants.TILE_SIZE, GameConstants.TILE_SIZE);
     private bool _isDisposed;
@@ -34,6 +36,8 @@ public sealed class PuzzleRenderer : IDisposable
         _wallOpenTexture = GenerateWallOpenTexture(graphicsDevice);
         _stoneActiveTexture = GenerateStoneActiveTexture(graphicsDevice);
         _keyTexture = GenerateKeyTexture(graphicsDevice);
+        _trapClosedTexture = GenerateTrapClosedTexture(graphicsDevice);
+        _trapOpenTexture = GenerateTrapOpenTexture(graphicsDevice);
     }
 
     /// <summary>
@@ -73,7 +77,10 @@ public sealed class PuzzleRenderer : IDisposable
         // 4. Dibuja la llave dorada colgada si no ha sido recogida
         DrawKey(spriteBatch, puzzle.Key, puzzle.KeyCoord, frameCounter);
 
-        // 5. Cartel de notificación (tesoro encontrado, llave obtenida o puerta bloqueada)
+        // 5. Dibuja la trampa de suelo bajo la llave (abierta o cerrada)
+        DrawTrap(spriteBatch, puzzle.Trap, puzzle.TrapCoord);
+
+        // 6. Cartel de notificación (tesoro encontrado, llave obtenida o puerta bloqueada)
         if (puzzle.NotificationTimer > 0 && !string.IsNullOrEmpty(puzzle.NotificationMessage))
         {
             // Sombra y texto
@@ -81,6 +88,21 @@ public sealed class PuzzleRenderer : IDisposable
             Color shadowColor = new(40, 20, 10);
             font.DrawTextCentered(spriteBatch, puzzle.NotificationMessage, GameConstants.VIRTUAL_WIDTH + 1, 97, shadowColor, scale: 1);
             font.DrawTextCentered(spriteBatch, puzzle.NotificationMessage, GameConstants.VIRTUAL_WIDTH, 96, noticeColor, scale: 1);
+        }
+    }
+
+    private void DrawTrap(SpriteBatch spriteBatch, FloorTrap trap, GridCoord coord)
+    {
+        _destRect.X = coord.X * GameConstants.TILE_SIZE;
+        _destRect.Y = coord.Y * GameConstants.TILE_SIZE;
+
+        if (trap.IsOpen)
+        {
+            spriteBatch.Draw(_trapOpenTexture, _destRect, Color.White);
+        }
+        else
+        {
+            spriteBatch.Draw(_trapClosedTexture, _destRect, Color.White);
         }
     }
 
@@ -377,10 +399,101 @@ public sealed class PuzzleRenderer : IDisposable
         return texture;
     }
 
+    private static Texture2D GenerateTrapClosedTexture(GraphicsDevice graphicsDevice)
+    {
+        Texture2D texture = new(graphicsDevice, 16, 16);
+        Color[] pixels = new Color[16 * 16];
+
+        Color stoneLight = new(215, 175, 105);
+        Color stoneBase = new(185, 145, 75);
+        Color stoneDark = new(135, 100, 45);
+        Color ironHinge = new(100, 105, 115);
+        Color ironRivet = new(160, 165, 175);
+        Color seamLine = new(70, 50, 20);
+
+        for (int y = 0; y < 16; y++)
+        {
+            for (int x = 0; x < 16; x++)
+            {
+                int index = y * 16 + x;
+
+                if (y == 0 || x == 0)
+                {
+                    pixels[index] = stoneLight;
+                }
+                else if (y == 15 || x == 15)
+                {
+                    pixels[index] = stoneDark;
+                }
+                else if (x == 7 || x == 8)
+                {
+                    pixels[index] = seamLine;
+                }
+                else if ((x >= 2 && x <= 4 && y >= 2 && y <= 4) || (x >= 11 && x <= 13 && y >= 2 && y <= 4))
+                {
+                    pixels[index] = (x == 3 && y == 3) || (x == 12 && y == 3) ? ironRivet : ironHinge;
+                }
+                else if ((x == 3 && y == 10) || (x == 4 && y == 11) || (x == 12 && y == 9) || (x == 11 && y == 10))
+                {
+                    pixels[index] = seamLine;
+                }
+                else
+                {
+                    pixels[index] = (x + y) % 5 == 0 ? stoneLight : stoneBase;
+                }
+            }
+        }
+
+        texture.SetData(pixels);
+        return texture;
+    }
+
+    private static Texture2D GenerateTrapOpenTexture(GraphicsDevice graphicsDevice)
+    {
+        Texture2D texture = new(graphicsDevice, 16, 16);
+        Color[] pixels = new Color[16 * 16];
+        Array.Fill(pixels, Color.Transparent);
+
+        Color stoneDark = new(90, 65, 30);
+        Color stoneBase = new(140, 105, 50);
+        Color ironHinge = new(70, 75, 85);
+        Color pitShadow = new(10, 5, 10, 180);
+
+        for (int y = 0; y < 16; y++)
+        {
+            for (int x = 0; x < 16; x++)
+            {
+                int index = y * 16 + x;
+
+                if (x <= 1 && y >= 3)
+                {
+                    pixels[index] = (x == 0) ? stoneDark : stoneBase;
+                }
+                else if (x >= 14 && y >= 3)
+                {
+                    pixels[index] = (x == 15) ? stoneDark : stoneBase;
+                }
+                else if ((x == 2 || x == 3 || x == 12 || x == 13) && (y == 0 || y == 1))
+                {
+                    pixels[index] = ironHinge;
+                }
+                else if (y <= 2)
+                {
+                    pixels[index] = pitShadow;
+                }
+            }
+        }
+
+        texture.SetData(pixels);
+        return texture;
+    }
+
     public void Dispose()
     {
         if (!_isDisposed)
         {
+            _trapOpenTexture?.Dispose();
+            _trapClosedTexture?.Dispose();
             _keyTexture?.Dispose();
             _chestTexture?.Dispose();
             _chestOpenTexture?.Dispose();

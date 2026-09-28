@@ -19,15 +19,19 @@ public sealed class PuzzleManager
     public GridCoord Treasure2Coord { get; } = new(8, 4);
     public GridCoord ExitDoorCoord { get; } = new(1, 4);
     public GridCoord KeyCoord { get; } = new(16, 6);
+    public GridCoord TrapCoord { get; } = new(16, 9);
 
     public const string MSG_TREASURE = "!TESORO ENCONTRADO! +1000 PTS";
     public const string MSG_KEY = "!LLAVE ENCONTRADA! +500 PTS";
     public const string MSG_DOOR_LOCKED = "!PUERTA CERRADA! NECESITAS LA LLAVE";
+    public const string MSG_TRAP = "!TRAMPA! EL PISO SE HA ABIERTO";
 
     public Treasure Treasure { get; }
     public Treasure Treasure2 { get; }
     public Key Key { get; }
+    public FloorTrap Trap { get; }
     public bool HasKey => Key.IsCollected;
+    public bool IsTrapOpen => Trap.IsOpen;
     public bool IsWallOpen { get; private set; }
     public bool WasPlayerOnStone { get; private set; }
     public bool IsChamberCompleted { get; private set; }
@@ -40,6 +44,7 @@ public sealed class PuzzleManager
         Treasure = new Treasure(TreasureCoord);
         Treasure2 = new Treasure(Treasure2Coord);
         Key = new Key(KeyCoord);
+        Trap = new FloorTrap(TrapCoord);
     }
 
     public void ResetScore() => Score = 0;
@@ -69,7 +74,10 @@ public sealed class PuzzleManager
         // 3. Piedra de activación en el suelo
         grid.SetTile(StoneCoord.X, StoneCoord.Y, TileType.PressurePlate);
 
-        // 4. Reinicio de variables de estado
+        // 4. Trampa de suelo bajo la llave inicialmente cerrada
+        grid.SetTile(TrapCoord.X, TrapCoord.Y, TileType.SolidWall);
+
+        // 5. Reinicio de variables de estado
         IsWallOpen = false;
         WasPlayerOnStone = false;
         NotificationTimer = 0;
@@ -78,6 +86,7 @@ public sealed class PuzzleManager
         Treasure.Reset();
         Treasure2.Reset();
         Key.Reset();
+        Trap.Reset();
     }
 
     /// <summary>
@@ -202,6 +211,39 @@ public sealed class PuzzleManager
             {
                 NotificationTimer = 90;
                 NotificationMessage = MSG_DOOR_LOCKED;
+            }
+        }
+
+        // 7. Detección de activación de la trampa en el piso bajo la llave
+        if (!Trap.IsOpen)
+        {
+            float trapLeft = TrapCoord.X * GameConstants.TILE_SIZE;
+            float trapRight = trapLeft + GameConstants.TILE_SIZE;
+
+            // El jugador está horizontalmente debajo de la llave (columna 16)
+            bool isUnderKey = playerRight > trapLeft + 2f && playerLeft < trapRight - 2f;
+            // El jugador está caminando o apoyado sobre el piso de la plataforma 1 (fila 9, Y ~ 128 px)
+            // y no está en el aire sobrevolando en salto
+            bool isGroundedOnPlatform1 = player.Position.Y >= 7.5f * GameConstants.TILE_SIZE &&
+                                         player.Position.Y <= 9.5f * GameConstants.TILE_SIZE &&
+                                         player.State != PlayerState.Jumping;
+
+            if (isUnderKey && isGroundedOnPlatform1)
+            {
+                Trap.Open();
+                grid.SetTile(TrapCoord.X, TrapCoord.Y, TileType.Empty);
+
+                // Abre el muro secreto en el piso inferior para permitir salir al jugador
+                if (!IsWallOpen)
+                {
+                    IsWallOpen = true;
+                    grid.SetTile(WallCoord.X, WallCoord.Y, TileType.Empty);
+                }
+
+                player.ForceFall(grid);
+
+                NotificationTimer = 120;
+                NotificationMessage = MSG_TRAP;
             }
         }
 

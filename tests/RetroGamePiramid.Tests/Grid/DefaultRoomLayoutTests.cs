@@ -89,9 +89,13 @@ public class DefaultRoomLayoutTests
     [Fact]
     public void PuzzleElements_AreCorrectlyPlaced()
     {
-        // Placa de presión en (3, 13)
-        Assert.Equal(TileType.PressurePlate, _grid.GetTile(3, 13));
-        Assert.True(_grid.IsPressurePlate(3, 13));
+        // Única losa de presión para activar el muro en (8, 13)
+        Assert.Equal(TileType.PressurePlate, _grid.GetTile(8, 13));
+        Assert.True(_grid.IsPressurePlate(8, 13));
+
+        // (3, 13) es espacio libre transitable (sin placa duplicada)
+        Assert.Equal(TileType.Empty, _grid.GetTile(3, 13));
+        Assert.True(_grid.IsEmpty(3, 13));
 
         // Puerta de salida en (1, 4) descansando sobre la plataforma de la fila 5
         Assert.Equal(TileType.ExitDoor, _grid.GetTile(1, 4));
@@ -107,9 +111,26 @@ public class DefaultRoomLayoutTests
         // Posiciones libres conocidas
         Assert.Equal(TileType.Empty, _grid.GetTile(1, 13));
         Assert.Equal(TileType.Empty, _grid.GetTile(2, 13));
+        Assert.Equal(TileType.Empty, _grid.GetTile(3, 13));
         Assert.Equal(TileType.Empty, _grid.GetTile(4, 13));
         Assert.Equal(TileType.Empty, _grid.GetTile(1, 1));
         Assert.Equal(TileType.Empty, _grid.GetTile(18, 1));
+    }
+
+    [Fact]
+    public void Level0_HasOnlyOnePressurePlate_AtCol8Row13()
+    {
+        int plateCount = 0;
+        for (int x = 0; x < GameConstants.GRID_COLUMNS; x++)
+        {
+            if (_grid.GetTile(x, 13) == TileType.PressurePlate)
+            {
+                plateCount++;
+                Assert.Equal(8, x);
+            }
+        }
+
+        Assert.Equal(1, plateCount);
     }
 
     [Fact]

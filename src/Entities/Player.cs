@@ -111,6 +111,24 @@ public sealed class Player
     }
 
     /// <summary>
+    /// Fuerza al jugador a entrar inmediatamente en estado de caída libre (por ejemplo al abrirse una trampa bajo sus pies).
+    /// Si el jugador está en el aire durante un salto, la parábola no se interrumpe.
+    /// Cero allocations.
+    /// </summary>
+    public void ForceFall(RoomGrid grid)
+    {
+        ArgumentNullException.ThrowIfNull(grid);
+
+        if (_state == PlayerState.Walking || _state == PlayerState.Idle)
+        {
+            _state = PlayerState.Falling;
+            _verticalVelocity = 0f;
+            _fallStartY = _position.Y;
+            _fallStartPlatformLevel = grid.GetPlatformLevel(_position.Y);
+        }
+    }
+
+    /// <summary>
     /// Actualiza la simulación del jugador en función de la entrada y la cuadrícula de la cámara.
     /// Completamente libre de allocations (sin new, sin LINQ, sin boxing).
     /// </summary>

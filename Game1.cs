@@ -112,7 +112,7 @@ public class Game1 : Game
         _mummy = new Mummy(
             spawnX: 13 * GameConstants.TILE_SIZE,
             spawnY: 4 * GameConstants.TILE_SIZE,
-            minX: 8 * GameConstants.TILE_SIZE,
+            minX: 4 * GameConstants.TILE_SIZE,
             maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
             initialFacing: Direction.Right);
         _mummyRenderer = new MummyRenderer(GraphicsDevice);
@@ -260,7 +260,24 @@ public class Game1 : Game
         _currentChamber = chamberNumber;
         _roomGrid.LoadChamber(chamberNumber);
         _puzzleManager.Initialize(_roomGrid);
-        _mummy.Reset();
+        if (chamberNumber == 2)
+        {
+            _mummy.Configure(
+                spawnX: 10 * GameConstants.TILE_SIZE,
+                spawnY: 5 * GameConstants.TILE_SIZE,
+                minX: 4 * GameConstants.TILE_SIZE,
+                maxX: 16 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                initialFacing: Direction.Right);
+        }
+        else
+        {
+            _mummy.Configure(
+                spawnX: 13 * GameConstants.TILE_SIZE,
+                spawnY: 4 * GameConstants.TILE_SIZE,
+                minX: 4 * GameConstants.TILE_SIZE,
+                maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                initialFacing: Direction.Right);
+        }
         _player.SetPosition(2 * GameConstants.TILE_SIZE + (GameConstants.TILE_SIZE - Player.WIDTH) / 2f, 13 * GameConstants.TILE_SIZE);
     }
 

@@ -224,4 +224,168 @@ public class PuzzleManagerTests
 
         Assert.True(puzzle.IsChamberCompleted);
     }
+
+    [Fact]
+    public void InitialState_TrapIsClosed_GridTileIsSolid()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+
+        Assert.False(puzzle.IsTrapOpen);
+        Assert.False(puzzle.Trap.IsOpen);
+        Assert.Equal(new GridCoord(16, 9), puzzle.TrapCoord);
+        Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.TrapCoord));
+    }
+
+    [Fact]
+    public void PassingUnderKey_WhileGrounded_OpensTrapAndForcesFalling()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        // Colocar al jugador caminando sobre la plataforma 1 bajo la llave (col 16, fila 8-9)
+        var player = new Player(16 * GameConstants.TILE_SIZE + 1f, 8 * GameConstants.TILE_SIZE);
+        Assert.Equal(PlayerState.Idle, player.State);
+
+        puzzle.Update(grid, player);
+
+        // La trampa debe abrirse, el piso volverse Empty y el jugador entrar en Falling
+        Assert.True(puzzle.IsTrapOpen);
+        Assert.Equal(TileType.Empty, grid.GetTile(puzzle.TrapCoord));
+        Assert.Equal(PlayerState.Falling, player.State);
+        Assert.Equal(PuzzleManager.MSG_TRAP, puzzle.NotificationMessage);
+
+        // La llave NO debe ser recolectada
+        Assert.False(puzzle.Key.IsCollected);
+        Assert.False(puzzle.HasKey);
+
+        // El muro secreto debe haberse abierto para permitir la salida del jugador
+        Assert.True(puzzle.IsWallOpen);
+        Assert.Equal(TileType.Empty, grid.GetTile(puzzle.WallCoord));
+    }
+
+    [Fact]
+    public void PassingUnderKey_PlayerFallsToLevel0_WithoutLosingLives_AndDoesNotGetKey()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        var player = new Player(16 * GameConstants.TILE_SIZE + 1f, 8 * GameConstants.TILE_SIZE);
+        Assert.Equal(3, player.Lives);
+
+        // Al pasar por debajo, se activa la trampa
+        puzzle.Update(grid, player);
+        Assert.Equal(PlayerState.Falling, player.State);
+
+        // Simular la caída paso a paso hasta que aterriza en el suelo del Nivel 0 (fila 14, Y = 208)
+        var neutral = new RetroGamePiramid.Input.PlayerInput(false, false, false, false, false);
+        for (int frame = 0; frame < 60; frame++)
+        {
+            player.Update(grid, in neutral);
+            puzzle.Update(grid, player);
+            if (player.State == PlayerState.Idle)
+                break;
+        }
+
+        // El jugador debe aterrizar en el suelo inferior (Nivel 0) ileso con sus 3 vidas intactas
+        Assert.Equal(PlayerState.Idle, player.State);
+        Assert.Equal(3, player.Lives);
+        Assert.False(player.IsEliminated);
+        Assert.Equal(13 * GameConstants.TILE_SIZE, player.Position.Y); // Sobre fila 14 (suelo nivel 0)
+
+        // La llave NO fue recogida durante la caída
+        Assert.False(puzzle.Key.IsCollected);
+        Assert.False(puzzle.HasKey);
+
+        // El muro conmutable está abierto, permitiendo al jugador caminar a la izquierda hacia la escalera
+        Assert.True(puzzle.IsWallOpen);
+        Assert.Equal(TileType.Empty, grid.GetTile(puzzle.WallCoord));
+    }
+
+    [Fact]
+    public void JumpingBeforeReachingKey_CollectsKeyInMidAir_AndLandsSafelyOnPlatform1()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        // Colocar al jugador en la columna 15 (antes de la llave) sobre la plataforma 1
+        var player = new Player(15 * GameConstants.TILE_SIZE + 4f, 8 * GameConstants.TILE_SIZE);
+        Assert.Equal(3, player.Lives);
+
+        // Iniciar salto hacia la derecha antes de llegar a la posición de la trampa/llave
+        var jumpInput = new RetroGamePiramid.Input.PlayerInput(left: false, right: true, up: false, down: false, jump: true);
+        player.Update(grid, in jumpInput);
+        puzzle.Update(grid, player);
+
+        Assert.Equal(PlayerState.Jumping, player.State);
+
+        // Avanzar el salto mientras sobrevuela en el aire
+        var neutral = new RetroGamePiramid.Input.PlayerInput(false, false, false, false, false);
+        bool keyCollectedMidAir = false;
+
+        for (int frame = 0; frame < Player.JUMP_DURATION_FRAMES; frame++)
+        {
+            player.Update(grid, in neutral);
+            puzzle.Update(grid, player);
+
+            if (puzzle.Key.IsCollected)
+            {
+                keyCollectedMidAir = true;
+            }
+        }
+
+        // 1. Debe haber recogido la llave en el aire
+        Assert.True(keyCollectedMidAir, "La llave debió ser recogida en pleno vuelo");
+        Assert.True(puzzle.HasKey);
+        Assert.Equal(500, puzzle.Score);
+
+        // 2. Debe haber aterrizado a salvo sobre la columna 17 (al otro lado de la trampa)
+        Assert.Equal(PlayerState.Idle, player.State);
+        Assert.Equal(8 * GameConstants.TILE_SIZE, player.Position.Y);
+        Assert.True(player.Position.X >= 17 * GameConstants.TILE_SIZE, "El jugador debió aterrizar en columna 17");
+        Assert.Equal(3, player.Lives);
+    }
+
+    [Fact]
+    public void JumpingBackFromColumn17_CrossesOpenTrap_AndLandsOnColumn15()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        // Abrir la trampa manualmente (como si hubiese sido activada previamente)
+        puzzle.Trap.Open();
+        grid.SetTile(puzzle.TrapCoord.X, puzzle.TrapCoord.Y, TileType.Empty);
+
+        // Colocar al jugador en la columna 17
+        var player = new Player(17 * GameConstants.TILE_SIZE + 4f, 8 * GameConstants.TILE_SIZE);
+
+        // Saltar hacia la izquierda
+        var jumpLeft = new RetroGamePiramid.Input.PlayerInput(left: true, right: false, up: false, down: false, jump: true);
+        player.Update(grid, in jumpLeft);
+        puzzle.Update(grid, player);
+
+        Assert.Equal(PlayerState.Jumping, player.State);
+
+        var neutral = new RetroGamePiramid.Input.PlayerInput(false, false, false, false, false);
+        for (int frame = 0; frame < Player.JUMP_DURATION_FRAMES; frame++)
+        {
+            player.Update(grid, in neutral);
+            puzzle.Update(grid, player);
+        }
+
+        // Debe aterrizar a salvo sobre la columna 15
+        Assert.Equal(PlayerState.Idle, player.State);
+        Assert.Equal(8 * GameConstants.TILE_SIZE, player.Position.Y);
+        Assert.True(player.Position.X < 16 * GameConstants.TILE_SIZE, "El jugador debió aterrizar en columna 15");
+        Assert.Equal(3, player.Lives);
+    }
+
+    [Fact]
+    public void Initialize_ResetsTrapToClosed_AndGridToSolid()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+
+        // Abrir la trampa
+        puzzle.Trap.Open();
+        grid.SetTile(puzzle.TrapCoord.X, puzzle.TrapCoord.Y, TileType.Empty);
+        Assert.True(puzzle.IsTrapOpen);
+
+        // Reinicializar
+        puzzle.Initialize(grid);
+
+        Assert.False(puzzle.IsTrapOpen);
+        Assert.False(puzzle.Trap.IsOpen);
+        Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.TrapCoord));
+    }
 }

@@ -11,9 +11,9 @@
 1. **Nueva Entidad Momia (`Mummy`):**
    - Enemigo patrullero de temática egipcia clásica de pirámides arcade.
    - Aparece desde el inicio en la **Plataforma Nivel 2** (fila 4 transitable, Y = 64).
-   - Patrulla horizontalmente y de forma autónoma únicamente dentro de los límites de la Plataforma 2 (columnas 8 a 17, X = 128 a 274 px).
+   - Patrulla horizontalmente y de forma autónoma por todo el piso del Nivel 2 (columnas 4 a 17, X = 64 a 274 px), solo hasta los espacios vacíos sin piso (columna 3 a la izquierda y columna 18 a la derecha).
    - Velocidad idéntica a la del arqueólogo (`Player.WALK_SPEED = 1.5f` px/frame).
-   - Al llegar a los extremos de la plataforma, invierte el sentido de su marcha (rebote de patrulla izquierda/derecha sin caer de la plataforma).
+   - Al llegar a los límites con los espacios sin piso, invierte el sentido de su marcha (rebote de patrulla izquierda/derecha sin caer al vacío).
 2. **Colisión, Evasión y Salto:**
    - **Salto sobre la momia:** La altura de salto del arqueólogo se calibra a `28 px` y la distancia horizontal a `40 px` con margen de tolerancia retro de `2 px`, permitiendo saltar y esquivar limpiamente por encima de la momia sin ser alcanzado.
    - Si la momia entra en contacto físico directo (colisión AABB) con el arqueólogo, este queda inmediatamente **eliminado** y **pierde 1 vida**.
@@ -30,9 +30,9 @@
 - **Físicas de Salto del Jugador:** Altura `JUMP_HEIGHT_PIXELS = 28f` px, Distancia `JUMP_HORIZONTAL_DISTANCE = 40f` px.
 - **Tolerancia de Colisión:** Margen de `2 px` para paso aéreo limpio.
 - **Velocidad de patrulla:** `Mummy.SPEED = Player.WALK_SPEED = 1.5f` px/frame.
-- **Rango de patrulla (Plataforma Nivel 2):**
-  - `MinX = 8 * 16 = 128f` px (extremo izquierdo, donde se ubica el segundo tesoro).
-  - `MaxX = 18 * 16 - 14 = 274f` px (borde derecho de la plataforma antes del vacío).
+- **Rango de patrulla (Plataforma Nivel 2 - Toda la plataforma hasta espacios sin piso):**
+  - `MinX = 4 * 16 = 64f` px (extremo izquierdo de la plataforma continua, justo en el borde del hueco sin piso de la columna 3).
+  - `MaxX = 18 * 16 - 14 = 274f` px (extremo derecho de la plataforma continua, justo en el borde del hueco sin piso de la columna 18).
   - `Y = 4 * GameConstants.TILE_SIZE = 64f` px.
 - **Spawn inicial:** Columna 13 (`X = 13 * 16 = 208f`, `Y = 64f`), dirección inicial hacia la derecha (`Direction.Right`).
 - **Opciones Modal Eliminado (con vidas):** `1: SALIR AL MENU` y `2: CONTINUAR`.
@@ -47,7 +47,7 @@
 ---
 
 ## 4. Criterios de Aceptación (QA)
-1. **Patrulla Autónoma:** La momia se desplaza a velocidad 1.5 px/frame por la plataforma 2 y rebota en los extremos (X=128 y X=274) sin caer al vacío.
+1. **Patrulla Autónoma:** La momia se desplaza a velocidad 1.5 px/frame por la plataforma 2 y rebota en los extremos (X=64 y X=274) cubriendo todo el suelo sin caer en los espacios vacíos.
 2. **Letalidad por Contacto:** Al colisionar con el jugador, el jugador entra en estado `Eliminated` y sus vidas disminuyen en 1.
 3. **No Múltiples Descuentos:** Una vez eliminado, la permanencia del contacto no descuenta vidas adicionales en frames sucesivos.
 4. **Reinicio en Posición Inicial:** Al re-iniciar la recámara, la momia se restablece en su posición de spawn.

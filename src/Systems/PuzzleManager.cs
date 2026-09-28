@@ -9,17 +9,18 @@ namespace RetroGamePiramid.Systems;
 /// <summary>
 /// Gestiona el desafío del puzle de la plataforma 0 (piso inferior).
 /// Controla la losa de piedra conmutable, el muro secreto del tesoro y la recolección del cofre.
+/// Adapta dinámicamente la configuración según la recámara activa.
 /// Garantiza cero asignaciones en memoria heap en cada frame.
 /// </summary>
 public sealed class PuzzleManager
 {
-    public GridCoord StoneCoord { get; } = new(8, 13);
-    public GridCoord WallCoord { get; } = new(14, 13);
-    public GridCoord TreasureCoord { get; } = new(17, 13);
-    public GridCoord Treasure2Coord { get; } = new(8, 4);
-    public GridCoord ExitDoorCoord { get; } = new(1, 4);
-    public GridCoord KeyCoord { get; } = new(16, 6);
-    public GridCoord TrapCoord { get; } = new(16, 9);
+    public GridCoord StoneCoord { get; private set; } = new(8, 13);
+    public GridCoord WallCoord { get; private set; } = new(14, 13);
+    public GridCoord TreasureCoord { get; private set; } = new(17, 13);
+    public GridCoord Treasure2Coord { get; private set; } = new(8, 4);
+    public GridCoord ExitDoorCoord { get; private set; } = new(1, 4);
+    public GridCoord KeyCoord { get; private set; } = new(16, 6);
+    public GridCoord TrapCoord { get; private set; } = new(16, 9);
 
     public const string MSG_TREASURE = "!TESORO ENCONTRADO! +1000 PTS";
     public const string MSG_KEY = "!LLAVE ENCONTRADA! +500 PTS";
@@ -58,10 +59,37 @@ public sealed class PuzzleManager
     /// <summary>
     /// Configura el puzle en la cuadrícula de la cámara.
     /// Crea el dintel de muro impenetrable en fila 10 a 12, el muro conmutable en fila 13 y la losa rúnica en col 8.
+    /// Adapta dinámicamente las coordenadas según la recámara activa.
     /// </summary>
-    public void Initialize(RoomGrid grid)
+    public void Initialize(RoomGrid grid, int chamberNumber = 1)
     {
         ArgumentNullException.ThrowIfNull(grid);
+
+        if (chamberNumber == 2)
+        {
+            StoneCoord = new(8, 13);
+            WallCoord = new(14, 13);
+            TreasureCoord = new(17, 13);
+            Treasure2Coord = new(8, 5);
+            ExitDoorCoord = new(1, 5);
+            KeyCoord = new(16, 7);
+            TrapCoord = new(16, 10);
+        }
+        else
+        {
+            StoneCoord = new(8, 13);
+            WallCoord = new(14, 13);
+            TreasureCoord = new(17, 13);
+            Treasure2Coord = new(8, 4);
+            ExitDoorCoord = new(1, 4);
+            KeyCoord = new(16, 6);
+            TrapCoord = new(16, 9);
+        }
+
+        Treasure.Configure(TreasureCoord);
+        Treasure2.Configure(Treasure2Coord);
+        Key.Configure(KeyCoord);
+        Trap.Configure(TrapCoord);
 
         // 1. Dintel superior sobre la puerta secreta para evitar saltar por encima
         grid.SetTile(WallCoord.X, 10, TileType.SolidWall);
@@ -77,7 +105,10 @@ public sealed class PuzzleManager
         // 4. Trampa de suelo bajo la llave inicialmente cerrada
         grid.SetTile(TrapCoord.X, TrapCoord.Y, TileType.SolidWall);
 
-        // 5. Reinicio de variables de estado
+        // 5. Puerta de salida
+        grid.SetTile(ExitDoorCoord.X, ExitDoorCoord.Y, TileType.ExitDoor);
+
+        // 6. Reinicio de variables de estado
         IsWallOpen = false;
         WasPlayerOnStone = false;
         NotificationTimer = 0;
@@ -222,10 +253,10 @@ public sealed class PuzzleManager
 
             // El jugador está horizontalmente debajo de la llave (columna 16)
             bool isUnderKey = playerRight > trapLeft + 2f && playerLeft < trapRight - 2f;
-            // El jugador está caminando o apoyado sobre el piso de la plataforma 1 (fila 9, Y ~ 128 px)
+            // El jugador está caminando o apoyado sobre el piso de la plataforma 1
             // y no está en el aire sobrevolando en salto
-            bool isGroundedOnPlatform1 = player.Position.Y >= 7.5f * GameConstants.TILE_SIZE &&
-                                         player.Position.Y <= 9.5f * GameConstants.TILE_SIZE &&
+            float platformPlayerY = (TrapCoord.Y - 1) * GameConstants.TILE_SIZE;
+            bool isGroundedOnPlatform1 = MathF.Abs(player.Position.Y - platformPlayerY) <= 4f &&
                                          player.State != PlayerState.Jumping;
 
             if (isUnderKey && isGroundedOnPlatform1)

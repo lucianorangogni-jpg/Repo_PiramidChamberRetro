@@ -13,14 +13,26 @@ namespace RetroGamePiramid.Scenes;
 public sealed class TitleMenu
 {
     private MenuOption _selectedOption = MenuOption.NewGame;
+    private int _selectedChamber = 1;
     private bool _prevUp;
     private bool _prevDown;
+    private bool _prevLeft;
+    private bool _prevRight;
     private bool _prevConfirm;
+
+    private const string CHAMBER_1_TEXT = "RECAMARA: < 1 >";
+    private const string CHAMBER_2_TEXT = "RECAMARA: < 2 >";
 
     public MenuOption SelectedOption
     {
         get => _selectedOption;
         set => _selectedOption = value;
+    }
+
+    public int SelectedChamber
+    {
+        get => _selectedChamber;
+        set => _selectedChamber = (value == 2) ? 2 : 1;
     }
 
     public bool CanContinue { get; set; }
@@ -31,7 +43,8 @@ public sealed class TitleMenu
         {
             MenuOption.NewGame => MenuOption.Exit,
             MenuOption.Continue => MenuOption.NewGame,
-            MenuOption.Exit => MenuOption.Continue,
+            MenuOption.SelectChamber => MenuOption.Continue,
+            MenuOption.Exit => MenuOption.SelectChamber,
             _ => MenuOption.NewGame
         };
     }
@@ -41,7 +54,8 @@ public sealed class TitleMenu
         _selectedOption = _selectedOption switch
         {
             MenuOption.NewGame => MenuOption.Continue,
-            MenuOption.Continue => MenuOption.Exit,
+            MenuOption.Continue => MenuOption.SelectChamber,
+            MenuOption.SelectChamber => MenuOption.Exit,
             MenuOption.Exit => MenuOption.NewGame,
             _ => MenuOption.NewGame
         };
@@ -49,16 +63,21 @@ public sealed class TitleMenu
 
     /// <summary>
     /// Actualiza la navegación del menú con detección de flancos para evitar saltos múltiples por frame.
-    /// Devuelve la opción confirmada si el usuario pulsó Enter o Espacio.
+    /// Permite cambiar de recámara con izquierda/derecha o enter sobre la opción de recámara.
+    /// Devuelve la opción confirmada si el usuario pulsó Enter o Espacio para iniciar o salir.
     /// </summary>
-    public bool Update(bool up, bool down, bool confirm, out MenuOption selectedAction)
+    public bool Update(bool up, bool down, bool left, bool right, bool confirm, out MenuOption selectedAction)
     {
         bool upJustPressed = up && !_prevUp;
         bool downJustPressed = down && !_prevDown;
+        bool leftJustPressed = left && !_prevLeft;
+        bool rightJustPressed = right && !_prevRight;
         bool confirmJustPressed = confirm && !_prevConfirm;
 
         _prevUp = up;
         _prevDown = down;
+        _prevLeft = left;
+        _prevRight = right;
         _prevConfirm = confirm;
 
         if (upJustPressed)
@@ -70,8 +89,20 @@ public sealed class TitleMenu
             NavigateDown();
         }
 
+        if (_selectedOption == MenuOption.SelectChamber && (leftJustPressed || rightJustPressed))
+        {
+            SelectedChamber = SelectedChamber == 1 ? 2 : 1;
+        }
+
         if (confirmJustPressed)
         {
+            if (_selectedOption == MenuOption.SelectChamber)
+            {
+                SelectedChamber = SelectedChamber == 1 ? 2 : 1;
+                selectedAction = _selectedOption;
+                return false;
+            }
+
             selectedAction = _selectedOption;
             return true;
         }
@@ -79,6 +110,12 @@ public sealed class TitleMenu
         selectedAction = _selectedOption;
         return false;
     }
+
+    /// <summary>
+    /// Sobrecarga compatible con versiones anteriores de Update.
+    /// </summary>
+    public bool Update(bool up, bool down, bool confirm, out MenuOption selectedAction) =>
+        Update(up, down, false, false, confirm, out selectedAction);
 
     /// <summary>
     /// Dibuja el menú de inicio con estilo arcade y estética egipcia.
@@ -108,18 +145,21 @@ public sealed class TitleMenu
         // Borde decorativo
         font.DrawTextCentered(spriteBatch, "==============================", GameConstants.VIRTUAL_WIDTH, 84, borderGold, scale: 1);
 
-        // 2. Opciones del menú (NUEVO, CONTINUAR, SALIR)
-        int menuStartY = 112;
-        int lineSpacing = 24;
+        // 2. Opciones del menú (NUEVO, CONTINUAR, RECAMARA, SALIR)
+        int menuStartY = 104;
+        int lineSpacing = 20;
 
         DrawOption(spriteBatch, font, MenuOption.NewGame, "NUEVO", menuStartY, frameCounter);
         DrawOption(spriteBatch, font, MenuOption.Continue, "CONTINUAR", menuStartY + lineSpacing, frameCounter);
-        DrawOption(spriteBatch, font, MenuOption.Exit, "SALIR", menuStartY + (lineSpacing * 2), frameCounter);
+        string chamberText = _selectedChamber == 2 ? CHAMBER_2_TEXT : CHAMBER_1_TEXT;
+        DrawOption(spriteBatch, font, MenuOption.SelectChamber, chamberText, menuStartY + (lineSpacing * 2), frameCounter);
+        DrawOption(spriteBatch, font, MenuOption.Exit, "SALIR", menuStartY + (lineSpacing * 3), frameCounter);
 
         // 3. Indicaciones de control en la parte inferior
-        font.DrawTextCentered(spriteBatch, "==============================", GameConstants.VIRTUAL_WIDTH, 192, borderGold, scale: 1);
+        font.DrawTextCentered(spriteBatch, "==============================", GameConstants.VIRTUAL_WIDTH, 188, borderGold, scale: 1);
         Color footerColor = new(170, 140, 95);
-        font.DrawTextCentered(spriteBatch, "FLECHAS: ELEGIR   ENTER: CONFIRMAR", GameConstants.VIRTUAL_WIDTH, 208, footerColor, scale: 1);
+        font.DrawTextCentered(spriteBatch, "FLECHAS: ELEGIR   ENTER: CONFIRMAR", GameConstants.VIRTUAL_WIDTH, 202, footerColor, scale: 1);
+        font.DrawTextCentered(spriteBatch, "IZQ/DER o 1/2: CAMBIAR RECAMARA", GameConstants.VIRTUAL_WIDTH, 216, footerColor, scale: 1);
     }
 
     private void DrawOption(SpriteBatch spriteBatch, PixelFont font, MenuOption option, string text, int y, int frameCounter)
@@ -161,4 +201,3 @@ public sealed class TitleMenu
         }
     }
 }
-

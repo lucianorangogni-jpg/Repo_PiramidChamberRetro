@@ -11,8 +11,8 @@ namespace RetroGamePiramid.Entities;
 /// </summary>
 public sealed class FloorTrap
 {
-    public GridCoord Coord { get; }
-    public Vector2 Position { get; }
+    public GridCoord Coord { get; private set; }
+    public Vector2 Position { get; private set; }
     public bool IsOpen { get; private set; }
 
     public FloorTrap(GridCoord coord)
@@ -22,6 +22,14 @@ public sealed class FloorTrap
         IsOpen = false;
     }
 
+    public void Configure(GridCoord coord)
+    {
+        Coord = coord;
+        Position = coord.ToPixelPosition();
+        IsOpen = false;
+    }
+
     public void Open() => IsOpen = true;
     public void Reset() => IsOpen = false;
 }
+

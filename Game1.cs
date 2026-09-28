@@ -143,15 +143,29 @@ public class Game1 : Game
         {
             bool up = keyboard.IsKeyDown(Keys.Up) || keyboard.IsKeyDown(Keys.W);
             bool down = keyboard.IsKeyDown(Keys.Down) || keyboard.IsKeyDown(Keys.S);
+            bool left = keyboard.IsKeyDown(Keys.Left) || keyboard.IsKeyDown(Keys.A);
+            bool right = keyboard.IsKeyDown(Keys.Right) || keyboard.IsKeyDown(Keys.D);
             bool confirm = keyboard.IsKeyDown(Keys.Enter) || keyboard.IsKeyDown(Keys.Space);
 
-            if (_titleMenu.Update(up, down, confirm, out MenuOption selectedAction))
+            // Teclas directas 1 y 2 para selección rápida de recámara en el menú
+            if ((keyboard.IsKeyDown(Keys.D1) || keyboard.IsKeyDown(Keys.NumPad1)) &&
+                !(_prevKeyboardState.IsKeyDown(Keys.D1) || _prevKeyboardState.IsKeyDown(Keys.NumPad1)))
+            {
+                _titleMenu.SelectedChamber = 1;
+            }
+            else if ((keyboard.IsKeyDown(Keys.D2) || keyboard.IsKeyDown(Keys.NumPad2)) &&
+                     !(_prevKeyboardState.IsKeyDown(Keys.D2) || _prevKeyboardState.IsKeyDown(Keys.NumPad2)))
+            {
+                _titleMenu.SelectedChamber = 2;
+            }
+
+            if (_titleMenu.Update(up, down, left, right, confirm, out MenuOption selectedAction))
             {
                 switch (selectedAction)
                 {
                     case MenuOption.NewGame:
-                        // Reiniciar vidas, puntaje, cámara, puzles y posición del arqueólogo
-                        _currentChamber = 1;
+                        // Iniciar partida en la recámara elegida por el jugador
+                        _currentChamber = _titleMenu.SelectedChamber;
                         _player.ResetLives();
                         _puzzleManager.ResetScore();
                         RestartCurrentRoom();
@@ -204,6 +218,7 @@ public class Game1 : Game
                     // 3: Salir al menú principal
                     _titleMenu.CanContinue = true;
                     _titleMenu.SelectedOption = MenuOption.Continue;
+                    _titleMenu.SelectedChamber = _currentChamber;
                     _currentScreen = GameScreen.TitleMenu;
                 }
 
@@ -231,6 +246,7 @@ public class Game1 : Game
                 {
                     _titleMenu.SelectedOption = MenuOption.Continue;
                 }
+                _titleMenu.SelectedChamber = _currentChamber;
                 _currentScreen = GameScreen.TitleMenu;
             }
             // Toque 2: Re-iniciar la pantalla (solo si el jugador aún tiene vidas)
@@ -259,14 +275,14 @@ public class Game1 : Game
     {
         _currentChamber = chamberNumber;
         _roomGrid.LoadChamber(chamberNumber);
-        _puzzleManager.Initialize(_roomGrid);
+        _puzzleManager.Initialize(_roomGrid, chamberNumber);
         if (chamberNumber == 2)
         {
             _mummy.Configure(
                 spawnX: 10 * GameConstants.TILE_SIZE,
                 spawnY: 5 * GameConstants.TILE_SIZE,
                 minX: 4 * GameConstants.TILE_SIZE,
-                maxX: 16 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
                 initialFacing: Direction.Right);
         }
         else

@@ -8,6 +8,6 @@ public enum MenuOption : byte
 {
     NewGame = 0,
     Continue = 1,
-    Exit = 2
+    SelectChamber = 2,
+    Exit = 3
 }
-

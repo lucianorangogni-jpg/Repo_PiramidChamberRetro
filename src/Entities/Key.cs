@@ -10,11 +10,18 @@ namespace RetroGamePiramid.Entities;
 /// </summary>
 public sealed class Key
 {
-    public GridCoord Coord { get; }
-    public Vector2 Position { get; }
+    public GridCoord Coord { get; private set; }
+    public Vector2 Position { get; private set; }
     public bool IsCollected { get; private set; }
 
     public Key(GridCoord coord)
+    {
+        Coord = coord;
+        Position = coord.ToPixelPosition();
+        IsCollected = false;
+    }
+
+    public void Configure(GridCoord coord)
     {
         Coord = coord;
         Position = coord.ToPixelPosition();

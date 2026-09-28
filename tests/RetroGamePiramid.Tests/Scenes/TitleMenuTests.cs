@@ -157,3 +157,4 @@ public class TitleMenuTests
         Assert.True(menu.CanContinue);
     }
 }
+

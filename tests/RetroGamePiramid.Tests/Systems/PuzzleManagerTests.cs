@@ -388,4 +388,346 @@ public class PuzzleManagerTests
         Assert.False(puzzle.Trap.IsOpen);
         Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.TrapCoord));
     }
+
+    [Fact]
+    public void Chamber1_SecretPuzzle_WhenTreasureNotCollected_DoorCyclesDoNotReloadTreasure()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        var player = new Player(puzzle.StoneCoord);
+
+        Assert.False(puzzle.Treasure.IsCollected);
+        Assert.Equal(0, puzzle.DoorCycleCount);
+
+        // Realizar 3 ciclos completos de abrir y cerrar la puerta
+        for (int cycle = 0; cycle < 3; cycle++)
+        {
+            // Abrir
+            player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+            Assert.True(puzzle.IsWallOpen);
+
+            // Salir de la piedra
+            player.SetPosition(10 * GameConstants.TILE_SIZE, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+
+            // Cerrar
+            player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+            Assert.False(puzzle.IsWallOpen);
+
+            // Salir de la piedra
+            player.SetPosition(10 * GameConstants.TILE_SIZE, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+        }
+
+        // El tesoro sigue sin haber sido recogido y el contador permanece en 0
+        Assert.False(puzzle.Treasure.IsCollected);
+        Assert.Equal(0, puzzle.DoorCycleCount);
+        Assert.NotEqual(PuzzleManager.MSG_TREASURE_RELOAD, puzzle.NotificationMessage);
+    }
+
+    [Fact]
+    public void Chamber1_SecretPuzzle_WhenAllItemsCollected_OpeningAndClosingDoorThreeTimes_ReloadsTreasure()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        var player = new Player(puzzle.StoneCoord);
+
+        // 1. Abrir puerta y recoger tesoro 1 (Nivel 0)
+        puzzle.Update(grid, player); // Abre el muro
+        Assert.True(puzzle.IsWallOpen);
+
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        Assert.True(puzzle.Treasure.IsCollected);
+        Assert.Equal(1000, puzzle.Score);
+
+        // 2. Recoger la llave (Nivel 1)
+        player.SetPosition(puzzle.KeyCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.KeyCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        Assert.True(puzzle.Key.IsCollected);
+        Assert.Equal(1500, puzzle.Score);
+
+        // 3. Recoger tesoro 2 (Nivel 2)
+        player.SetPosition(puzzle.Treasure2Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure2Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        Assert.True(puzzle.Treasure2.IsCollected);
+        Assert.Equal(2500, puzzle.Score);
+        Assert.False(puzzle.HasSecretTreasureReloaded);
+
+        // 4. Realizar 3 ciclos completos de abrir y cerrar con todos los prerrequisitos cumplidos
+        for (int cycle = 1; cycle <= 3; cycle++)
+        {
+            // Pisar la piedra: si estaba abierta se cierra; si estaba cerrada se abre.
+            player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+
+            // Salir de la piedra
+            player.SetPosition(10 * GameConstants.TILE_SIZE, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+
+            // Si cycle < 3, abrir nuevamente para continuar el ciclo siguiente
+            if (cycle < 3)
+            {
+                player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+                puzzle.Update(grid, player); // Abre
+                Assert.True(puzzle.IsWallOpen);
+
+                player.SetPosition(10 * GameConstants.TILE_SIZE, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+                puzzle.Update(grid, player); // Sale
+            }
+        }
+
+        // Al cerrarse por 3.ª vez:
+        Assert.False(puzzle.IsWallOpen);
+        Assert.False(puzzle.Treasure.IsCollected, "El tesoro 1 debió recargarse");
+        Assert.True(puzzle.HasSecretTreasureReloaded);
+        Assert.Equal(0, puzzle.DoorCycleCount);
+        Assert.Equal(PuzzleManager.MSG_TREASURE_RELOAD, puzzle.NotificationMessage);
+
+        // 5. Volver a abrir la puerta y recoger el nuevo tesoro por otros +1000 puntos
+        player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player); // Abre puerta
+        Assert.True(puzzle.IsWallOpen);
+
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player); // Recoge segundo tesoro
+
+        Assert.True(puzzle.Treasure.IsCollected);
+        Assert.Equal(3500, puzzle.Score);
+    }
+
+    [Fact]
+    public void Chamber1_SecretPuzzle_MissingTreasure2_DoesNotReloadTreasure()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        var player = new Player(puzzle.StoneCoord);
+
+        // Recoger tesoro 1 y llave, pero NO tesoro 2
+        puzzle.Update(grid, player); // Abre puerta
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player); // Recoge tesoro 1
+
+        player.SetPosition(puzzle.KeyCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.KeyCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player); // Recoge llave
+
+        Assert.True(puzzle.Treasure.IsCollected);
+        Assert.True(puzzle.Key.IsCollected);
+        Assert.False(puzzle.Treasure2.IsCollected);
+
+        // 3 ciclos de puerta
+        for (int i = 0; i < 6; i++)
+        {
+            player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+            player.SetPosition(10 * GameConstants.TILE_SIZE, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+        }
+
+        // No se recarga porque falta tesoro 2
+        Assert.True(puzzle.Treasure.IsCollected);
+        Assert.False(puzzle.HasSecretTreasureReloaded);
+        Assert.NotEqual(PuzzleManager.MSG_TREASURE_RELOAD, puzzle.NotificationMessage);
+    }
+
+    [Fact]
+    public void Chamber1_SecretPuzzle_MissingKey_DoesNotReloadTreasure()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        var player = new Player(puzzle.StoneCoord);
+
+        // Recoger tesoro 1 y tesoro 2, pero NO la llave
+        puzzle.Update(grid, player); // Abre puerta
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player); // Recoge tesoro 1
+
+        player.SetPosition(puzzle.Treasure2Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure2Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player); // Recoge tesoro 2
+
+        Assert.True(puzzle.Treasure.IsCollected);
+        Assert.False(puzzle.Key.IsCollected);
+        Assert.True(puzzle.Treasure2.IsCollected);
+
+        // 3 ciclos de puerta
+        for (int i = 0; i < 6; i++)
+        {
+            player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+            player.SetPosition(10 * GameConstants.TILE_SIZE, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+        }
+
+        // No se recarga porque falta la llave
+        Assert.True(puzzle.Treasure.IsCollected);
+        Assert.False(puzzle.HasSecretTreasureReloaded);
+        Assert.NotEqual(PuzzleManager.MSG_TREASURE_RELOAD, puzzle.NotificationMessage);
+    }
+
+    [Fact]
+    public void Chamber1_SecretPuzzle_CanOnlyBeTriggeredOnce()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        var player = new Player(puzzle.StoneCoord);
+
+        // 1. Recoger los 3 ítems
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.KeyCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.KeyCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.Treasure2Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure2Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+
+        // 2. Primeros 3 ciclos -> activa recarga
+        for (int i = 0; i < 6; i++)
+        {
+            player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+            player.SetPosition(10 * GameConstants.TILE_SIZE, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+        }
+
+        Assert.False(puzzle.Treasure.IsCollected);
+        Assert.True(puzzle.HasSecretTreasureReloaded);
+
+        // 3. Recoger el tesoro recargado
+        player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player); // Abre
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player); // Recoge
+        Assert.True(puzzle.Treasure.IsCollected);
+        Assert.Equal(3500, puzzle.Score);
+
+        // 4. Intentar realizar otros 3 ciclos completos de puerta
+        for (int i = 0; i < 6; i++)
+        {
+            player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+            player.SetPosition(10 * GameConstants.TILE_SIZE, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+        }
+
+        // NO debe volver a recargarse (activación única)
+        Assert.True(puzzle.Treasure.IsCollected, "El tesoro no debe recargarse una segunda vez");
+        Assert.Equal(0, puzzle.DoorCycleCount);
+        Assert.Equal(3500, puzzle.Score);
+    }
+
+    [Fact]
+    public void Chamber2_DoorCycles_DoNotTriggerChamber1SecretPuzzle()
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(2);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, 2);
+
+        var player = new Player(puzzle.StoneCoord);
+
+        // Abrir puerta y recoger los 3 ítems en Recámara 2
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.KeyCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.KeyCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.Treasure2Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure2Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+
+        Assert.True(puzzle.Treasure.IsCollected);
+        Assert.True(puzzle.Key.IsCollected);
+        Assert.True(puzzle.Treasure2.IsCollected);
+
+        // Realizar ciclos de abrir y cerrar
+        for (int i = 0; i < 6; i++)
+        {
+            player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+            player.SetPosition(10 * GameConstants.TILE_SIZE, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+        }
+
+        // En Recámara 2 no se recarga
+        Assert.True(puzzle.Treasure.IsCollected);
+        Assert.False(puzzle.HasSecretTreasureReloaded);
+        Assert.NotEqual(PuzzleManager.MSG_TREASURE_RELOAD, puzzle.NotificationMessage);
+    }
+
+    [Fact]
+    public void Initialize_Chamber2_SetsTrapAtRow10_AndKeyAtRow7()
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(2);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, 2);
+
+        Assert.Equal(new GridCoord(16, 10), puzzle.TrapCoord);
+        Assert.Equal(new GridCoord(16, 7), puzzle.KeyCoord);
+        Assert.Equal(new GridCoord(1, 5), puzzle.ExitDoorCoord);
+        Assert.Equal(new GridCoord(8, 5), puzzle.Treasure2Coord);
+        Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.TrapCoord));
+        Assert.Equal(TileType.ExitDoor, grid.GetTile(puzzle.ExitDoorCoord));
+    }
+
+    [Fact]
+    public void Chamber2_PassingUnderKey_OnPlatform1Row10_TriggersTrapAndForcesFalling()
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(2);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, 2);
+
+        // En Recámara 2, la plataforma 1 está en fila 10 (Y suelo = 160, jugador Y = 144)
+        var player = new Player(16 * GameConstants.TILE_SIZE, 9 * GameConstants.TILE_SIZE);
+        Assert.Equal(PlayerState.Idle, player.State);
+
+        puzzle.Update(grid, player);
+
+        Assert.True(puzzle.Trap.IsOpen, "La trampa debió abrirse en fila 10");
+        Assert.Equal(TileType.Empty, grid.GetTile(puzzle.TrapCoord));
+        Assert.Equal(PlayerState.Falling, player.State);
+        Assert.Equal(PuzzleManager.MSG_TRAP, puzzle.NotificationMessage);
+    }
+
+    [Fact]
+    public void Chamber2_JumpingBeforeKey_CollectsKeyAtRow7_AndLandsOnColumn17()
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(2);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, 2);
+
+        // Colocar al jugador en columna 15 en la plataforma 1 (fila 10, Y = 144)
+        var player = new Player(15 * GameConstants.TILE_SIZE + 4f, 9 * GameConstants.TILE_SIZE);
+        Assert.Equal(3, player.Lives);
+
+        // Iniciar salto hacia la derecha
+        var jumpInput = new RetroGamePiramid.Input.PlayerInput(left: false, right: true, up: false, down: false, jump: true);
+        player.Update(grid, in jumpInput);
+        puzzle.Update(grid, player);
+
+        Assert.Equal(PlayerState.Jumping, player.State);
+
+        var neutral = new RetroGamePiramid.Input.PlayerInput(false, false, false, false, false);
+        bool keyCollectedMidAir = false;
+
+        for (int frame = 0; frame < Player.JUMP_DURATION_FRAMES; frame++)
+        {
+            player.Update(grid, in neutral);
+            puzzle.Update(grid, player);
+
+            if (puzzle.Key.IsCollected)
+            {
+                keyCollectedMidAir = true;
+            }
+        }
+
+        // 1. Recoge la llave colgada en fila 7 en pleno salto
+        Assert.True(keyCollectedMidAir, "La llave debió ser recogida en el aire en Recámara 2");
+        Assert.True(puzzle.HasKey);
+
+        // 2. Aterriza a salvo en columna 17 sin caer en la trampa
+        Assert.Equal(PlayerState.Idle, player.State);
+        Assert.Equal(9 * GameConstants.TILE_SIZE, player.Position.Y);
+        Assert.True(player.Position.X >= 17 * GameConstants.TILE_SIZE);
+        Assert.False(puzzle.IsTrapOpen, "La trampa debió permanecer cerrada tras saltar sobre ella");
+        Assert.Equal(3, player.Lives);
+    }
 }

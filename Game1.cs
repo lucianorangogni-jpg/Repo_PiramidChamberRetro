@@ -25,6 +25,7 @@ public class Game1 : Game
     private TitleMenu _titleMenu = null!;
     private PuzzleManager _puzzleManager = null!;
     private PuzzleRenderer _puzzleRenderer = null!;
+    private HieroglyphRenderer _hieroglyphRenderer = null!;
     private Mummy _mummy = null!;
     private MummyRenderer _mummyRenderer = null!;
 
@@ -103,6 +104,7 @@ public class Game1 : Game
         _puzzleManager = new PuzzleManager();
         _puzzleManager.Initialize(_roomGrid);
         _puzzleRenderer = new PuzzleRenderer(GraphicsDevice);
+        _hieroglyphRenderer = new HieroglyphRenderer(GraphicsDevice);
 
         // Inicialización del arqueólogo y su renderizador pixel-art
         _player = new Player(new GridCoord(2, 13));
@@ -122,6 +124,7 @@ public class Game1 : Game
     {
         _mummyRenderer?.Dispose();
         _puzzleRenderer?.Dispose();
+        _hieroglyphRenderer?.Dispose();
         _pixelFont?.Dispose();
         _playerRenderer?.Dispose();
         _tileRenderer?.Dispose();
@@ -317,6 +320,9 @@ public class Game1 : Game
         }
         else if (_currentScreen == GameScreen.Playing)
         {
+            // Dibuja el mural jeroglífico egipcio en el fondo del Nivel 0 (cero allocations)
+            _hieroglyphRenderer.Draw(_spriteBatch, _currentChamber);
+
             // Dibuja las baldosas de la cámara (cero allocations)
             _tileRenderer.Draw(_spriteBatch, _roomGrid);
 

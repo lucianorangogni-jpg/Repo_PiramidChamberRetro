@@ -238,8 +238,8 @@ public sealed class RoomGrid
             SetTile(GameConstants.GRID_COLUMNS - 1, y, TileType.SolidWall);
         }
 
-        // Plataforma intermedia Nivel 1 (fila 10, columnas 3 a 16)
-        for (int x = 3; x <= 16; x++)
+        // Plataforma intermedia Nivel 1 (fila 10, columnas 3 a 17)
+        for (int x = 3; x <= 17; x++)
         {
             SetTile(x, 10, TileType.SolidWall);
         }
@@ -254,7 +254,7 @@ public sealed class RoomGrid
         SetTile(1, 6, TileType.SolidWall);
         SetTile(2, 6, TileType.SolidWall);
         // Columna 3 es hueco de salto
-        for (int x = 4; x <= 15; x++)
+        for (int x = 4; x <= 17; x++)
         {
             SetTile(x, 6, TileType.SolidWall);
         }
@@ -272,8 +272,8 @@ public sealed class RoomGrid
         RoomName = "Recamara 2";
         _platforms.Clear();
         _platforms.Add(new PlatformInfo(0, GameConstants.GRID_ROWS - 1, 1, GameConstants.GRID_COLUMNS - 2, "Plataforma Nivel 0"));
-        _platforms.Add(new PlatformInfo(1, 10, 3, 16, "Plataforma Nivel 1"));
-        _platforms.Add(new PlatformInfo(2, 6, 1, 15, "Plataforma Nivel 2"));
+        _platforms.Add(new PlatformInfo(1, 10, 3, 17, "Plataforma Nivel 1"));
+        _platforms.Add(new PlatformInfo(2, 6, 1, 17, "Plataforma Nivel 2"));
     }
 
     /// <summary>

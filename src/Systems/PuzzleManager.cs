@@ -23,6 +23,7 @@ public sealed class PuzzleManager
     public GridCoord TrapCoord { get; private set; } = new(16, 9);
 
     public const string MSG_TREASURE = "!TESORO ENCONTRADO! +1000 PTS";
+    public const string MSG_TREASURE_RELOAD = "!TESORO RECARGADO! +1000 PTS";
     public const string MSG_KEY = "!LLAVE ENCONTRADA! +500 PTS";
     public const string MSG_DOOR_LOCKED = "!PUERTA CERRADA! NECESITAS LA LLAVE";
     public const string MSG_TRAP = "!TRAMPA! EL PISO SE HA ABIERTO";
@@ -36,6 +37,9 @@ public sealed class PuzzleManager
     public bool IsWallOpen { get; private set; }
     public bool WasPlayerOnStone { get; private set; }
     public bool IsChamberCompleted { get; private set; }
+    public int CurrentChamber { get; private set; } = 1;
+    public int DoorCycleCount { get; private set; }
+    public bool HasSecretTreasureReloaded { get; private set; }
     public int Score { get; private set; }
     public int NotificationTimer { get; private set; }
     public string NotificationMessage { get; private set; } = "";
@@ -109,6 +113,9 @@ public sealed class PuzzleManager
         grid.SetTile(ExitDoorCoord.X, ExitDoorCoord.Y, TileType.ExitDoor);
 
         // 6. Reinicio de variables de estado
+        CurrentChamber = chamberNumber;
+        DoorCycleCount = 0;
+        HasSecretTreasureReloaded = false;
         IsWallOpen = false;
         WasPlayerOnStone = false;
         NotificationTimer = 0;
@@ -151,6 +158,37 @@ public sealed class PuzzleManager
 
             // Si está abierto, la celda se vuelve transitable (Empty); si está cerrado, vuelve a ser SolidWall
             grid.SetTile(WallCoord.X, WallCoord.Y, IsWallOpen ? TileType.Empty : TileType.SolidWall);
+
+            // Puzle 1 (Recámara 1):
+            // Requisitos:
+            // 1. Tener recogidos los 2 tesoros (Nivel 0 y Nivel 2) y la llave (Nivel 1).
+            // 2. Pasar por la losa para abrir y cerrar la puerta del nivel 0 tres (3) veces consecutivas.
+            // 3. Activación única: solo se puede hacer una vez, no se repite nuevamente.
+            if (CurrentChamber == 1 && !HasSecretTreasureReloaded)
+            {
+                bool arePrerequisitesMet = Treasure.IsCollected && Treasure2.IsCollected && Key.IsCollected;
+
+                if (!IsWallOpen)
+                {
+                    // La puerta acaba de cerrarse completando un ciclo de conmutación
+                    if (arePrerequisitesMet)
+                    {
+                        DoorCycleCount++;
+                        if (DoorCycleCount >= 3)
+                        {
+                            Treasure.Reset();
+                            HasSecretTreasureReloaded = true;
+                            DoorCycleCount = 0;
+                            NotificationTimer = 180;
+                            NotificationMessage = MSG_TREASURE_RELOAD;
+                        }
+                    }
+                    else
+                    {
+                        DoorCycleCount = 0;
+                    }
+                }
+            }
         }
 
         WasPlayerOnStone = isPlayerOnStone;

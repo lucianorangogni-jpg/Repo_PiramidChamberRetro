@@ -30,6 +30,7 @@ public sealed class FloorTrap
     }
 
     public void Open() => IsOpen = true;
+    public void Close() => IsOpen = false;
     public void Reset() => IsOpen = false;
 }
 

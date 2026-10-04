@@ -36,8 +36,11 @@ public sealed class MummyRenderer : IDisposable
         ArgumentNullException.ThrowIfNull(spriteBatch);
         ArgumentNullException.ThrowIfNull(mummy);
 
-        // Ciclo de animación de marcha de 2 frames (alterna cada 12 ticks a 60 FPS)
-        bool isFrame1 = (frameCounter / 12) % 2 == 0;
+        if (!mummy.IsActive)
+            return;
+
+        // Ciclo de animación de marcha de 2 frames si está despierta, o frame fijo de guardia si duerme
+        bool isFrame1 = !mummy.IsAwake || ((frameCounter / 12) % 2 == 0);
         Texture2D texture = isFrame1 ? _walk1Texture : _walk2Texture;
 
         SpriteEffects effects = mummy.Facing == Direction.Left ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
@@ -46,7 +49,10 @@ public sealed class MummyRenderer : IDisposable
         _destRect.X = (int)MathF.Round(mummy.Position.X - 1f);
         _destRect.Y = (int)MathF.Round(mummy.Position.Y);
 
-        spriteBatch.Draw(texture, _destRect, null, Color.White, 0f, Vector2.Zero, effects, 0f);
+        // Tinte de estatua de piedra si quedó petrificada en el Nivel 0
+        Color tint = mummy.HasReachedLevel0 ? new Color(170, 170, 180) : Color.White;
+
+        spriteBatch.Draw(texture, _destRect, null, tint, 0f, Vector2.Zero, effects, 0f);
     }
 
     public void Dispose()

@@ -38,4 +38,15 @@ public class FloorTrapTests
         trap.Reset();
         Assert.False(trap.IsOpen);
     }
+
+    [Fact]
+    public void Close_SetsIsOpenFalse()
+    {
+        var trap = new FloorTrap(new GridCoord(13, 5));
+        trap.Open();
+        Assert.True(trap.IsOpen);
+
+        trap.Close();
+        Assert.False(trap.IsOpen);
+    }
 }

@@ -70,8 +70,26 @@ public sealed class PuzzleRenderer : IDisposable
             spriteBatch.Draw(_wallClosedTexture, _destRect, Color.White);
         }
 
-        // 3. Dibuja los cofres del tesoro (Plataforma 0 y Plataforma Nivel 2)
-        DrawChest(spriteBatch, puzzle.Treasure, puzzle.TreasureCoord, frameCounter);
+        // 3. Dibuja los cofres del tesoro (Plataforma 0 y Plataforma Nivel 2, y nuevos tesoros si fueron generados)
+        if (puzzle.IsTreasure4Spawned)
+        {
+            DrawChest(spriteBatch, puzzle.Treasure4, puzzle.Treasure4Coord, frameCounter);
+        }
+        else if (puzzle.IsTreasure3Spawned)
+        {
+            if (puzzle.Treasure.IsCollected)
+            {
+                DrawChest(spriteBatch, puzzle.Treasure3, puzzle.Treasure3Coord, frameCounter);
+            }
+            else
+            {
+                DrawChest(spriteBatch, puzzle.Treasure, puzzle.TreasureCoord, frameCounter);
+            }
+        }
+        else
+        {
+            DrawChest(spriteBatch, puzzle.Treasure, puzzle.TreasureCoord, frameCounter);
+        }
         DrawChest(spriteBatch, puzzle.Treasure2, puzzle.Treasure2Coord, frameCounter);
 
         // 4. Dibuja la llave dorada colgada si no ha sido recogida
@@ -79,6 +97,12 @@ public sealed class PuzzleRenderer : IDisposable
 
         // 5. Dibuja la trampa de suelo bajo la llave (abierta o cerrada)
         DrawTrap(spriteBatch, puzzle.Trap, puzzle.TrapCoord);
+
+        // 5b. Dibuja la trampa de suelo en Nivel 2 (abierta o cerrada) si está habilitada
+        if (puzzle.HasTrap2)
+        {
+            DrawTrap(spriteBatch, puzzle.Trap2, puzzle.Trap2Coord);
+        }
 
         // 6. Cartel de notificación (tesoro encontrado, llave obtenida o puerta bloqueada)
         if (puzzle.NotificationTimer > 0 && !string.IsNullOrEmpty(puzzle.NotificationMessage))

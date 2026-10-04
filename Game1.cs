@@ -27,12 +27,14 @@ public class Game1 : Game
     private PuzzleRenderer _puzzleRenderer = null!;
     private HieroglyphRenderer _hieroglyphRenderer = null!;
     private Mummy _mummy = null!;
+    private Mummy _mummyPlatform1 = null!;
     private MummyRenderer _mummyRenderer = null!;
 
     private GameScreen _currentScreen = GameScreen.TitleMenu;
     private int _frameCounter;
     private KeyboardState _prevKeyboardState;
     private int _currentChamber = 1;
+    private bool _wasJumpingOverMummy;
 
     private const string HUD_ROOM_NAME = "RECAMARA 1";
     private const string HUD_TEXT_MENU = "1: SALIR AL MENU";
@@ -117,6 +119,17 @@ public class Game1 : Game
             minX: 4 * GameConstants.TILE_SIZE,
             maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
             initialFacing: Direction.Right);
+
+        // Momia guardiana de la plataforma 1 (Recámara 1): inicialmente inmóvil a la izquierda
+        _mummyPlatform1 = new Mummy(
+            spawnX: 2 * GameConstants.TILE_SIZE,
+            spawnY: 8 * GameConstants.TILE_SIZE,
+            minX: 2 * GameConstants.TILE_SIZE,
+            maxX: 11 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            initialFacing: Direction.Right,
+            initiallyAwake: false,
+            initiallyActive: true);
+
         _mummyRenderer = new MummyRenderer(GraphicsDevice);
     }
 
@@ -259,11 +272,70 @@ public class Game1 : Game
             }
             else if (!_player.IsEliminated)
             {
-                // Muestreo de entrada y actualización del jugador, momia y puzle (cero allocations)
+                // Muestreo de entrada y actualización del jugador, momias y puzle (cero allocations)
                 PlayerInput input = PlayerInput.FromKeyboard(keyboard);
                 _player.Update(_roomGrid, in input);
-                _mummy.Update(_player);
-                _puzzleManager.Update(_roomGrid, _player);
+                _puzzleManager.Update(_roomGrid, _player, _mummy);
+
+                // Al tomar la llave se despierta la momia guardiana de la plataforma 1
+                if (_puzzleManager.HasKey && !_mummyPlatform1.IsAwake && _mummyPlatform1.IsActive)
+                {
+                    _mummyPlatform1.WakeUp();
+                }
+
+                // Puzle 5 (Recámara 1): Detección de salto del jugador sobre la momia despierta de plataforma 1
+                if (_currentChamber == 1 && _mummyPlatform1.IsActive && _mummyPlatform1.IsAwake && !_mummyPlatform1.IsChasing && !_mummyPlatform1.HasReachedLevel0)
+                {
+                    if (_player.State == PlayerState.Jumping)
+                    {
+                        float playerLeft = _player.Position.X;
+                        float playerRight = _player.Position.X + Player.WIDTH;
+                        float mummyLeft = _mummyPlatform1.Position.X;
+                        float mummyRight = _mummyPlatform1.Position.X + Mummy.WIDTH;
+
+                        bool horizOverlap = playerRight > mummyLeft && playerLeft < mummyRight;
+                        bool isAbove = (_player.Position.Y + Player.HEIGHT) <= (_mummyPlatform1.Position.Y + 4f);
+
+                        if (horizOverlap && isAbove)
+                        {
+                            _wasJumpingOverMummy = true;
+                        }
+                    }
+                    else
+                    {
+                        if (_wasJumpingOverMummy)
+                        {
+                            _wasJumpingOverMummy = false;
+                            if (!_player.IsEliminated)
+                            {
+                                bool chased = _mummyPlatform1.RegisterJumpOver();
+                                if (chased)
+                                {
+                                    _puzzleManager.NotifyMummyChase();
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    _wasJumpingOverMummy = false;
+                }
+
+                _mummy.Update(_player, _roomGrid);
+                _mummyPlatform1.Update(_player, _roomGrid);
+
+                // Si la momia de plataforma 1 cayó al Nivel 0 y se petrificó, se genera el cofre sagrado ancestral (Treasure 3)
+                if (_mummyPlatform1.HasReachedLevel0 && !_puzzleManager.IsTreasure3Spawned)
+                {
+                    _puzzleManager.SpawnTreasure3(_roomGrid);
+                }
+
+                if (_player.IsEliminated)
+                {
+                    _wasJumpingOverMummy = false;
+                    _mummyPlatform1.ResetJumpOver();
+                }
             }
         }
 
@@ -276,6 +348,7 @@ public class Game1 : Game
     /// </summary>
     public void LoadChamber(int chamberNumber)
     {
+        _wasJumpingOverMummy = false;
         _currentChamber = chamberNumber;
         _roomGrid.LoadChamber(chamberNumber);
         _puzzleManager.Initialize(_roomGrid, chamberNumber);
@@ -287,15 +360,32 @@ public class Game1 : Game
                 minX: 4 * GameConstants.TILE_SIZE,
                 maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
                 initialFacing: Direction.Right);
+
+            // En Recámara 2 la momia de plataforma 1 permanece desactivada
+            _mummyPlatform1.Configure(
+                spawnX: 0, spawnY: 0, minX: 0, maxX: 0,
+                initialFacing: Direction.Right,
+                initiallyAwake: false,
+                initiallyActive: false);
         }
         else
         {
             _mummy.Configure(
-                spawnX: 13 * GameConstants.TILE_SIZE,
+                spawnX: 15 * GameConstants.TILE_SIZE,
                 spawnY: 4 * GameConstants.TILE_SIZE,
                 minX: 4 * GameConstants.TILE_SIZE,
                 maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
                 initialFacing: Direction.Right);
+
+            // En Recámara 1 la momia guardiana inicia inmóvil en el extremo izquierdo de plataforma 1
+            _mummyPlatform1.Configure(
+                spawnX: 2 * GameConstants.TILE_SIZE,
+                spawnY: 8 * GameConstants.TILE_SIZE,
+                minX: 2 * GameConstants.TILE_SIZE,
+                maxX: 11 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                initialFacing: Direction.Right,
+                initiallyAwake: false,
+                initiallyActive: true);
         }
         _player.SetPosition(2 * GameConstants.TILE_SIZE + (GameConstants.TILE_SIZE - Player.WIDTH) / 2f, 13 * GameConstants.TILE_SIZE);
     }
@@ -329,8 +419,9 @@ public class Game1 : Game
             // Dibuja los elementos del puzle (piedra conmutable, muro secreto y cofres de tesoro)
             _puzzleRenderer.Draw(_spriteBatch, _puzzleManager, _pixelFont, _frameCounter);
 
-            // Dibuja a la momia enemiga patrullando la plataforma nivel 2
+            // Dibuja a las momias enemigas
             _mummyRenderer.Draw(_spriteBatch, _mummy, _frameCounter);
+            _mummyRenderer.Draw(_spriteBatch, _mummyPlatform1, _frameCounter);
 
             // Dibuja al arqueólogo con sus animaciones retro y orientación
             _playerRenderer.Draw(_spriteBatch, _player);

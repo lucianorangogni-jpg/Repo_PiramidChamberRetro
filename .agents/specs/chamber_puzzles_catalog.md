@@ -67,10 +67,11 @@ Dentro de la pirámide ancestral, cada recámara presenta una serie de desafíos
 - **Efecto / Recompensa:**
   - Otorga **+500 puntos** y posesión de la llave (`HasKey = true`).
   - Mensaje en pantalla: `"!LLAVE ENCONTRADA! +500 PTS"`.
+  - **Consecuencia / Despertar [US-014]:** Al recoger la llave, la **momia guardiana de la Plataforma 1** (que aguardaba inmóvil en el extremo izquierdo, columna 2) **despierta de inmediato y comienza a patrullar** entre las columnas 2 y 10, obligando al jugador a esquivarla para ascender por la Escalera 2.
 
 ---
 
-### Puzle 4: Salto al Descansillo y Desbloqueo de la Puerta de Salida (Nivel 2) [US-010]
+#### Puzle 4: Salto al Descansillo y Desbloqueo de la Puerta de Salida (Nivel 2) [US-010]
 - **Ubicación:** Plataforma Nivel 2 (Fila 5).
 - **Entidades involucradas:**
   - Plataforma principal: columnas 4 a 17 (Fila 5).
@@ -83,6 +84,55 @@ Dentro de la pirámide ancestral, cada recámara presenta una serie de desafíos
   - Al tocar la puerta portando la llave (`HasKey == true`), la recámara concluye con éxito (`IsChamberCompleted = true`), activando el modal de victoria y avance de recámara.
 - **Efecto / Recompensa:**
   - Finalización de la Recámara 1 y acceso a la siguiente recámara.
+
+---
+
+### Puzle 5: Salto sobre la Momia, Persecución al Foso y Tesoro Ancestral (Nivel 1 -> Nivel 0) [US-015]
+- **Ubicación:** Plataforma Nivel 1 (Fila 9) y cámara del tesoro en Nivel 0 (Fila 13, columna 17).
+- **Entidades involucradas:**
+  - Momia guardiana de Plataforma 1 (patrullando entre columnas 2 y 10 tras despertar).
+  - Llave sagrada (`HasKey == true`).
+  - Fosos de la plataforma y trampa de suelo en columna 16.
+  - Cofre ancestral del tesoro 3: `(17, 13)` en Nivel 0 (creado de nuevo en el mismo lugar de la cámara).
+- **Condiciones previas:**
+  - Haber recogido la llave sagrada para que la momia de Plataforma 1 despierte de su letargo (`IsAwake == true`).
+- **Mecánica de resolución:**
+  - El jugador debe saltar limpiamente sobre la momia de Plataforma 1 **4 veces consecutivas**.
+  - Al completar el 4.º salto, la momia se enfurece y entra en **Modo Persecución** (`IsChasing = true`), persiguiendo activamente al jugador.
+  - Cuando el arqueólogo cae al Nivel 0 (mediante la trampa rúnica de la columna 16 o por los fosos), la momia lo persigue hacia el vacío y cae por gravedad hasta el piso inferior.
+  - Al impactar en el suelo de Nivel 0 ($Y = 208\text{ px}$), la momia queda petrificada e inmóvil para siempre (`HasReachedLevel0 = true`).
+  - Al caer la momia, el muro de la cámara se abre y se crea/materializa un nuevo tesoro sagrado en el **mismo lugar donde ya existe en la cámara en el Nivel 0**: columna 17, fila 13 (`Treasure3Coord = (17, 13)`).
+- **Pista visual en el escenario [US-016]:** En el fondo del Nivel 1 (filas 6 a 8) se encuentran grabados jeroglíficos egipcios en bajo relieve tenue, indicando visualmente la fórmula: `[Momia + Salto 4x (IIII)] -> [Momia Cayendo al Foso (⬇)] -> [Cofre Sagrado Renovado ☥]`.
+- **Efecto / Recompensa:**
+  - Otorga **+1000 puntos** al saquear el cofre ancestral en la cámara de Nivel 0.
+  - Notificaciones en pantalla: `"!MOMIA ENFURECIDA TE PERSIGUE!"`, `"!MOMIA PETRIFICADA! TESORO EN CAMARA"` y `"!TESORO ANCESTRAL REVELADO! +1000 PTS"`.
+
+---
+
+### Puzle 6: Trampa Temporal de Nivel 2 y Purga de la Momia Guardiana [US-017 / US-018]
+- **Ubicación:** Plataforma Nivel 2 (Fila 5, Columna 13) y Cámara del Tesoro en Nivel 0 `(17, 13)`.
+- **Entidades involucradas:**
+  - Trampa conmutable con temporizador: `(13, 5)`
+  - Momia de Nivel 2 (patrulla en plataforma superior)
+  - Foso de caída en Nivel 1: `(13, 9)`
+  - Suelo de impacto en Nivel 0: `(13, 14)`
+  - Cuarto cofre del tesoro: `(17, 13)` en Nivel 0
+- **Mecánica de resolución:**
+  - **Apertura de la trampa:** Al pasar el jugador por la columna 13 en Nivel 2 (caminando o saltando), la trampa se abre de inmediato (`Trap2OpenTimer = 120` frames, aprox. 2 segundos). Pasado ese tiempo, la trampa se cierra automáticamente volviendo a ser suelo sólido (`SolidWall`).
+  - **Efecto sobre el Jugador:**
+    - Si el jugador cruza saltando: activa la trampa pero aterriza a salvo al otro lado de la plataforma.
+    - Si el jugador camina o se detiene sobre la trampa abierta: cae en caída libre hasta el Nivel 0, la trampa lo sella, queda atrapado y pierde 1 vida (`player.Eliminate()`).
+  - **Efecto sobre la Momia de Nivel 2:**
+    - Cualquier personaje puede caer en la trampa abierta. Si la momia de Nivel 2 patrulla sobre la columna 13 mientras la trampa está abierta, cae por el foso hasta el Nivel 0.
+    - **Caídas 1 y 2:** La momia queda atrapada y se regenera en su posición de origen (`SpawnPosition`). Mensajes: `"!MOMIA ATRAPADA EN LA TRAMPA! (1/3)"` y `"(2/3)"`.
+    - **Caída 3 (Derrota definitiva):** Al caer por 3.ª vez, la momia es eliminada permanentemente (`IsActive = false`). Mensaje: `"!MOMIA DERROTADA! TRAMPA SUPERADA"`.
+  - **Recompensa (Nuevo Tesoro en Cámara Nivel 0):**
+    - Tras la 3.ª caída de la momia, se engendra un nuevo tesoro en la cámara de Nivel 0 en `(17, 13)` (`Treasure4`).
+    - Si el tesoro actual de la cámara aún no ha sido recogido por el jugador, queda marcado como pendiente (`IsTreasure4Pending = true`) y se materializa inmediatamente en cuanto el jugador saquee el actual.
+- **Efecto / Recompensa:**
+  - Desactiva permanentemente la amenaza de la momia de Nivel 2.
+  - Otorga **+1000 puntos** adicionales al recolectar el tesoro 4 en la cámara de Nivel 0.
+  - Mensaje en pantalla: `"!NUEVO TESORO EN CAMARA! +1000 PTS"`.
 
 ---
 
@@ -143,11 +193,13 @@ Dentro de la pirámide ancestral, cada recámara presenta una serie de desafíos
 ## 4. Cuadro Resumen de Puzles y Puntuación
 
 | Recámara | ID Puzle | Nombre del Puzle | Ubicación | Puntos | Condición de Éxito |
-| :--- | :--- | :--- | :--- | :---: | :--- |
+| :--- | :--- | :--- | :--- | :--- | :--- |
 | **Recámara 1** | **Puzle 1** | **Recarga Secreta del Tesoro** | Nivel 0 `(8, 13)` / `(17, 13)` | +1000 | 2 tesoros y llave recogidos + 3 ciclos puerta (activación única) |
 | **Recámara 1** | **Puzle 2** | **Apertura de Cámara del Tesoro** | Nivel 0 `(8, 13)` / `(14, 13)` | +1000 | Pisar losa para abrir muro y llegar al cofre |
 | **Recámara 1** | **Puzle 3** | **Llave Colgada y Trampa de Suelo** | Nivel 1 `(16, 6)` / `(16, 9)` | +500 | Salto desde col 15 a 17 sobre trampa para tomar llave |
 | **Recámara 1** | **Puzle 4** | **Salto al Descansillo y Puerta de Salida** | Nivel 2 `(1, 4)` / col 3 foso | Salida | Salto sobre foso col 3 y contacto con puerta teniendo llave |
+| **Recámara 1** | **Puzle 5** | **Momia al Foso y Tesoro Ancestral** | Nivel 1 -> 0 / cofre `(17, 13)` | +1000 | Saltar 4 veces sobre momia despierta, guiarla al foso y saquear cofre en cámara |
+| **Recámara 1** | **Puzle 6** | **Trampa Temporal y Derrota de Momia** | Nivel 2 `(13, 5)` / cofre `(17, 13)` | +1000 | Abrir trampa saltando, hacer caer a la momia 3 veces y recoger nuevo tesoro en cámara |
 | **Recámara 1** | Extra | **Cofre Superior de Plataforma 2** | Nivel 2 `(8, 4)` | +1000 | Recoger cofre en plataforma superior |
 | **Recámara 2** | **Puzle 1** | **Apertura de Cámara del Tesoro** | Nivel 0 `(8, 13)` / `(14, 13)` | +1000 | Pisar losa para abrir muro y llegar al cofre |
 | **Recámara 2** | **Puzle 2** | **Llave Colgada y Trampa en Nivel Elevado** | Nivel 1 `(16, 7)` / `(16, 10)` | +500 | Salto sobre trampa en fila 10 para recoger llave en fila 7 |

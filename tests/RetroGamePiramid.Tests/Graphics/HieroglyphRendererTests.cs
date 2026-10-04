@@ -100,4 +100,80 @@ public class HieroglyphRendererTests
         // Cartucho del Faraón
         Assert.NotEqual(Color.Transparent, pixels[20 * width + 60]);
     }
+
+    [Fact]
+    public void GenerateMuralLevel1Pixels_ReturnsArrayWithExactDimensions()
+    {
+        const int width = HieroglyphRenderer.MURAL_LEVEL1_WIDTH;
+        const int height = HieroglyphRenderer.MURAL_LEVEL1_HEIGHT;
+
+        Color[] pixels = HieroglyphRenderer.GenerateMuralLevel1Pixels(width, height);
+
+        Assert.NotNull(pixels);
+        Assert.Equal(width * height, pixels.Length);
+        Assert.Equal(320, width);
+        Assert.Equal(48, height);
+        Assert.Equal(96, HieroglyphRenderer.MURAL_LEVEL1_Y);
+    }
+
+    [Fact]
+    public void GenerateMuralLevel1Pixels_ContainsLowContrastSubtlePalette()
+    {
+        Color[] pixels = HieroglyphRenderer.GenerateMuralLevel1Pixels(
+            HieroglyphRenderer.MURAL_LEVEL1_WIDTH,
+            HieroglyphRenderer.MURAL_LEVEL1_HEIGHT);
+
+        int nonTransparentCount = 0;
+        foreach (Color c in pixels)
+        {
+            if (c.A > 0)
+            {
+                nonTransparentCount++;
+                Assert.True(c.R <= 90, $"El canal R ({c.R}) supera el umbral suave");
+                Assert.True(c.G <= 70, $"El canal G ({c.G}) supera el umbral suave");
+                Assert.True(c.B <= 55, $"El canal B ({c.B}) supera el umbral suave");
+            }
+        }
+
+        Assert.True(nonTransparentCount > 400, "El mural de Nivel 1 debe contener al menos 400 píxeles de bajorrelieve tallado");
+    }
+
+    [Fact]
+    public void GenerateMuralLevel1Pixels_ContainsMummyJumpFallAndTreasureSequence()
+    {
+        const int width = HieroglyphRenderer.MURAL_LEVEL1_WIDTH;
+        Color[] pixels = HieroglyphRenderer.GenerateMuralLevel1Pixels(
+            width,
+            HieroglyphRenderer.MURAL_LEVEL1_HEIGHT);
+
+        // 1. Sello sagrado del escarabajo Khepri en x=38, y=18
+        Assert.NotEqual(Color.Transparent, pixels[18 * width + 38]);
+
+        // 2. Las 4 marcas rituales sagradas (IIII) de los 4 saltos sobre la momia en y=6
+        Assert.NotEqual(Color.Transparent, pixels[6 * width + 75]); // Marca 1
+        Assert.NotEqual(Color.Transparent, pixels[6 * width + 78]); // Marca 2
+        Assert.NotEqual(Color.Transparent, pixels[6 * width + 81]); // Marca 3
+        Assert.NotEqual(Color.Transparent, pixels[6 * width + 84]); // Marca 4
+
+        // 3. Glifo de la Momia bajo el arco de salto en x=78, y=28
+        Assert.NotEqual(Color.Transparent, pixels[28 * width + 78]);
+
+        // 4. Conector ritual 1: Flecha hacia la derecha en x=110, y=25
+        Assert.NotEqual(Color.Transparent, pixels[25 * width + 110]);
+
+        // 5. Flecha ritual descendente (⬇) de la caída de la momia en x=141, y=14
+        Assert.NotEqual(Color.Transparent, pixels[14 * width + 141]);
+
+        // 6. Momia precipitándose al foso en x=138, y=24
+        Assert.NotEqual(Color.Transparent, pixels[24 * width + 138]);
+
+        // 7. Conector ritual 2: Flecha hacia la derecha en x=172, y=25
+        Assert.NotEqual(Color.Transparent, pixels[25 * width + 172]);
+
+        // 8. Nuevo Cofre Sagrado Radiante renacido en x=192, y=22
+        Assert.NotEqual(Color.Transparent, pixels[22 * width + 192]);
+
+        // 9. Cruz Ankh ☥ sagrada junto al cofre en x=204, y=21
+        Assert.NotEqual(Color.Transparent, pixels[21 * width + 204]);
+    }
 }

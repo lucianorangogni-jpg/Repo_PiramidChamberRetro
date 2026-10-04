@@ -730,4 +730,370 @@ public class PuzzleManagerTests
         Assert.False(puzzle.IsTrapOpen, "La trampa debió permanecer cerrada tras saltar sobre ella");
         Assert.Equal(3, player.Lives);
     }
+
+    [Fact]
+    public void Treasure3_InitiallyNotSpawned_MatchesChamberTreasureLocation()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        Assert.False(puzzle.IsTreasure3Spawned);
+        Assert.Equal(new GridCoord(17, 13), puzzle.Treasure3Coord);
+        Assert.Equal(puzzle.TreasureCoord, puzzle.Treasure3Coord);
+    }
+
+    [Fact]
+    public void SpawnTreasure3_SetsSpawned_OpensWallAndShowsNotification()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        Assert.False(puzzle.IsWallOpen);
+        Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.WallCoord));
+
+        puzzle.SpawnTreasure3(grid);
+
+        Assert.True(puzzle.IsTreasure3Spawned);
+        Assert.False(puzzle.Treasure3.IsCollected);
+        Assert.True(puzzle.IsWallOpen, "El muro de la cámara debe abrirse al caer la momia y petrificarse");
+        Assert.Equal(TileType.Empty, grid.GetTile(puzzle.WallCoord));
+        Assert.Equal(PuzzleManager.MSG_TREASURE3_SPAWN, puzzle.NotificationMessage);
+        Assert.Equal(180, puzzle.NotificationTimer);
+    }
+
+    [Fact]
+    public void CollectTreasure3_InSameChamberLocation_AwardsPointsSequentially()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+
+        // 1. Recoger tesoro original en (17, 13)
+        var player = new Player(puzzle.TreasureCoord);
+        puzzle.Update(grid, player);
+
+        Assert.True(puzzle.Treasure.IsCollected);
+        Assert.Equal(1000, puzzle.Score);
+
+        // 2. Al caer la momia al Nivel 0, se genera un nuevo tesoro en el mismo lugar de la cámara
+        puzzle.SpawnTreasure3(grid);
+        Assert.True(puzzle.IsTreasure3Spawned);
+        Assert.False(puzzle.Treasure3.IsCollected);
+        Assert.Equal(PuzzleManager.MSG_TREASURE3_SPAWN, puzzle.NotificationMessage);
+
+        // 3. Recoger el nuevo cofre creado en (17, 13)
+        puzzle.Update(grid, player);
+
+        Assert.True(puzzle.Treasure3.IsCollected);
+        Assert.Equal(2000, puzzle.Score);
+        Assert.Equal(PuzzleManager.MSG_TREASURE3, puzzle.NotificationMessage);
+        Assert.True(puzzle.NotificationTimer > 0);
+    }
+
+    [Fact]
+    public void NotifyMummyChase_SetsMessageAndTimer()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+
+        puzzle.NotifyMummyChase();
+
+        Assert.Equal(PuzzleManager.MSG_MUMMY_CHASE, puzzle.NotificationMessage);
+        Assert.Equal(120, puzzle.NotificationTimer);
+    }
+
+    [Fact]
+    public void Initialize_ResetsTreasure3State()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        var player = new Player(puzzle.TreasureCoord);
+        puzzle.Update(grid, player);
+        puzzle.SpawnTreasure3(grid);
+        puzzle.Update(grid, player);
+        Assert.True(puzzle.Treasure3.IsCollected);
+
+        puzzle.Initialize(grid, 1);
+
+        Assert.False(puzzle.IsTreasure3Spawned);
+        Assert.False(puzzle.Treasure3.IsCollected);
+    }
+
+    [Fact]
+    public void Initialize_Chamber1_EnablesTrap2_AtRow5Col13()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+
+        Assert.True(puzzle.HasTrap2);
+        Assert.Equal(new GridCoord(13, 5), puzzle.Trap2Coord);
+        Assert.False(puzzle.IsTrap2Open);
+        Assert.False(puzzle.IsTrap2Triggered);
+        Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.Trap2Coord));
+    }
+
+    [Fact]
+    public void Initialize_Chamber2_DisablesTrap2()
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(2);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, 2);
+
+        Assert.False(puzzle.HasTrap2);
+    }
+
+    [Fact]
+    public void Chamber1_JumpingOverColumn13_OnPlatform2_OpensTrap_AndPlayerSurvives()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+
+        // Colocar al jugador en col 12 en plataforma 2 (fila 4, Y = 64)
+        var player = new Player(12 * GameConstants.TILE_SIZE, 4 * GameConstants.TILE_SIZE);
+        Assert.Equal(3, player.Lives);
+
+        // Iniciar salto hacia la derecha sobrevolando la columna 13
+        var jumpInput = new RetroGamePiramid.Input.PlayerInput(left: false, right: true, up: false, down: false, jump: true);
+        player.Update(grid, in jumpInput);
+        puzzle.Update(grid, player);
+
+        Assert.Equal(PlayerState.Jumping, player.State);
+
+        var neutral = new RetroGamePiramid.Input.PlayerInput(false, false, false, false, false);
+        for (int frame = 0; frame < Player.JUMP_DURATION_FRAMES; frame++)
+        {
+            player.Update(grid, in neutral);
+            puzzle.Update(grid, player);
+        }
+
+        // 1. Al pasar saltando por arriba, la trampa se abrió
+        Assert.True(puzzle.IsTrap2Open, "La trampa 2 debió abrirse al pasar el jugador saltando por arriba");
+        Assert.True(puzzle.Trap2OpenTimer > 0);
+        Assert.Equal(TileType.Empty, grid.GetTile(puzzle.Trap2Coord));
+
+        // 2. Aterriza a salvo en columna 14 sin caer al vacío
+        Assert.Equal(PlayerState.Idle, player.State);
+        Assert.Equal(4 * GameConstants.TILE_SIZE, player.Position.Y);
+        Assert.True(player.Position.X >= 14 * GameConstants.TILE_SIZE);
+        Assert.Equal(3, player.Lives);
+        Assert.False(player.IsEliminated);
+    }
+
+    [Fact]
+    public void Chamber1_Trap2_TimerClosesAutomaticallyAfter120Frames()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        var player = new Player(12 * GameConstants.TILE_SIZE, 4 * GameConstants.TILE_SIZE);
+
+        // Abrir la trampa saltando sobre ella
+        var jumpInput = new RetroGamePiramid.Input.PlayerInput(left: false, right: true, up: false, down: false, jump: true);
+        player.Update(grid, in jumpInput);
+        puzzle.Update(grid, player);
+
+        var neutral = new RetroGamePiramid.Input.PlayerInput(false, false, false, false, false);
+        for (int frame = 0; frame < Player.JUMP_DURATION_FRAMES; frame++)
+        {
+            player.Update(grid, in neutral);
+            puzzle.Update(grid, player);
+        }
+
+        Assert.True(puzzle.IsTrap2Open);
+
+        // Avanzar los frames restantes del temporizador (120 frames totales)
+        while (puzzle.Trap2OpenTimer > 0)
+        {
+            puzzle.Update(grid, player);
+        }
+
+        // La trampa debe haberse cerrado automáticamente
+        Assert.False(puzzle.IsTrap2Open, "La trampa debió cerrarse tras expirar el temporizador");
+        Assert.Equal(0, puzzle.Trap2OpenTimer);
+        Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.Trap2Coord));
+    }
+
+    [Fact]
+    public void Chamber1_WalkingOnColumn13_OnPlatform2_TriggersTrap_ForcesFall_ClosesBehindAndEliminatesPlayer()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+
+        // Colocar al jugador caminando sobre la baldosa de columna 13 en plataforma 2
+        var player = new Player(13 * GameConstants.TILE_SIZE + 1f, 4 * GameConstants.TILE_SIZE);
+        var walkRight = new RetroGamePiramid.Input.PlayerInput(left: false, right: true, up: false, down: false, jump: false);
+
+        player.Update(grid, in walkRight);
+        puzzle.Update(grid, player);
+
+        // 1. La trampa se abre y fuerza al jugador a caer
+        Assert.True(puzzle.Trap2.IsOpen, "La trampa debió abrirse al pisarla caminando");
+        Assert.True(puzzle.IsTrap2Triggered);
+        Assert.Equal(TileType.Empty, grid.GetTile(puzzle.Trap2Coord));
+        Assert.Equal(PlayerState.Falling, player.State);
+        Assert.Equal(PuzzleManager.MSG_TRAP2, puzzle.NotificationMessage);
+        Assert.True(puzzle.NotificationTimer > 0);
+
+        // 2. Simular frames de caída libre
+        var neutral = new RetroGamePiramid.Input.PlayerInput(false, false, false, false, false);
+        int maxFrames = 100;
+        int frame = 0;
+        while (player.State == PlayerState.Falling && frame < maxFrames)
+        {
+            player.Update(grid, in neutral);
+            puzzle.Update(grid, player);
+            frame++;
+
+            // Cuando desciende por debajo de la trampa (Y >= 96), la trampa se cierra a sus espaldas
+            if (player.Position.Y >= ((puzzle.Trap2Coord.Y + 1) * GameConstants.TILE_SIZE))
+            {
+                Assert.False(puzzle.Trap2.IsOpen, "La trampa debió cerrarse tras franquearla el jugador");
+                Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.Trap2Coord));
+            }
+        }
+
+        // 3. Al impactar en el suelo de Nivel 0, el jugador queda eliminado y pierde 1 vida
+        Assert.True(player.IsEliminated, "El jugador debió ser eliminado por caída fatal desde Nivel 2 a Nivel 0");
+        Assert.Equal(2, player.Lives); // Pierde 1 vida
+        Assert.Equal(PuzzleManager.MSG_TRAP2, puzzle.NotificationMessage);
+        Assert.True(puzzle.NotificationTimer > 0);
+    }
+
+    [Fact]
+    public void RestartChamber1_AfterTrap2Death_ResetsTrap2State()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+
+        var player = new Player(13 * GameConstants.TILE_SIZE + 1f, 4 * GameConstants.TILE_SIZE);
+        var walkRight = new RetroGamePiramid.Input.PlayerInput(left: false, right: true, up: false, down: false, jump: false);
+        player.Update(grid, in walkRight);
+        puzzle.Update(grid, player);
+
+        Assert.True(puzzle.IsTrap2Triggered);
+
+        // Reinicio de recámara
+        puzzle.Initialize(grid, 1);
+
+        Assert.False(puzzle.IsTrap2Open);
+        Assert.False(puzzle.IsTrap2Triggered);
+        Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.Trap2Coord));
+    }
+
+    [Fact]
+    public void Chamber1_MummyFallsInTrap_RespawnsTwice_AndIsEliminatedThirdTime_SpawningTreasure4()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        var player = new Player(14 * GameConstants.TILE_SIZE, 13 * GameConstants.TILE_SIZE);
+
+        // 1. Recoger previamente el tesoro de la cámara
+        puzzle.Update(grid, new Player(puzzle.TreasureCoord));
+        Assert.True(puzzle.Treasure.IsCollected);
+
+        var mummy = new Mummy(
+            spawnX: 15 * GameConstants.TILE_SIZE,
+            spawnY: 4 * GameConstants.TILE_SIZE,
+            minX: 4 * GameConstants.TILE_SIZE,
+            maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            initialFacing: Direction.Left);
+
+        // --- CAÍDA 1 ---
+        // Abrir la trampa
+        puzzle.Trap2.Open();
+        grid.SetTile(puzzle.Trap2Coord.X, puzzle.Trap2Coord.Y, TileType.Empty);
+
+        // La momia pisa columna 13
+        mummy.SetPosition(13 * GameConstants.TILE_SIZE + 1f, 4 * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummy);
+        Assert.True(mummy.IsFalling);
+        Assert.True(puzzle.IsMummy2FallingInTrap);
+
+        // Simular caída hasta el Nivel 0
+        mummy.SetPosition(13 * GameConstants.TILE_SIZE + 1f, 13 * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummy);
+
+        Assert.Equal(1, puzzle.Mummy2TrapFallCount);
+        Assert.True(mummy.IsActive);
+        Assert.False(mummy.IsFalling);
+        Assert.Equal(mummy.SpawnPosition, mummy.Position);
+        Assert.Equal(PuzzleManager.MSG_MUMMY_TRAPPED_1, puzzle.NotificationMessage);
+
+        // --- CAÍDA 2 ---
+        puzzle.Trap2.Open();
+        grid.SetTile(puzzle.Trap2Coord.X, puzzle.Trap2Coord.Y, TileType.Empty);
+
+        mummy.SetPosition(13 * GameConstants.TILE_SIZE + 1f, 4 * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummy);
+        Assert.True(mummy.IsFalling);
+
+        mummy.SetPosition(13 * GameConstants.TILE_SIZE + 1f, 13 * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummy);
+
+        Assert.Equal(2, puzzle.Mummy2TrapFallCount);
+        Assert.True(mummy.IsActive);
+        Assert.False(mummy.IsFalling);
+        Assert.Equal(mummy.SpawnPosition, mummy.Position);
+        Assert.Equal(PuzzleManager.MSG_MUMMY_TRAPPED_2, puzzle.NotificationMessage);
+
+        // --- CAÍDA 3 ---
+        puzzle.Trap2.Open();
+        grid.SetTile(puzzle.Trap2Coord.X, puzzle.Trap2Coord.Y, TileType.Empty);
+
+        mummy.SetPosition(13 * GameConstants.TILE_SIZE + 1f, 4 * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummy);
+        Assert.True(mummy.IsFalling);
+
+        mummy.SetPosition(13 * GameConstants.TILE_SIZE + 1f, 13 * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummy);
+
+        Assert.Equal(3, puzzle.Mummy2TrapFallCount);
+        Assert.False(mummy.IsActive, "La momia debió ser eliminada definitivamente tras la 3.ª caída");
+        Assert.Equal(PuzzleManager.MSG_MUMMY_DEFEATED, puzzle.NotificationMessage);
+        Assert.True(puzzle.IsTreasure4Spawned, "Como el tesoro ya estaba cogido, se crea de inmediato Treasure4");
+        Assert.False(puzzle.IsTreasure4Pending);
+        Assert.True(puzzle.IsWallOpen);
+
+        // --- RECOLECCIÓN DE TREASURE 4 ---
+        int prevScore = puzzle.Score;
+        var playerAtTreasure4 = new Player(puzzle.Treasure4Coord);
+        puzzle.Update(grid, playerAtTreasure4, mummy);
+
+        Assert.True(puzzle.Treasure4.IsCollected);
+        Assert.Equal(prevScore + 1000, puzzle.Score);
+        Assert.Equal(PuzzleManager.MSG_TREASURE4, puzzle.NotificationMessage);
+    }
+
+    [Fact]
+    public void Chamber1_MummyFall3_WhenChamberTreasureNotCollected_SetsTreasure4Pending_SpawnsOnCollection()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        var player = new Player(14 * GameConstants.TILE_SIZE, 13 * GameConstants.TILE_SIZE);
+
+        Assert.False(puzzle.Treasure.IsCollected, "El tesoro de la cámara aún no ha sido recogido");
+
+        var mummy = new Mummy(
+            spawnX: 15 * GameConstants.TILE_SIZE,
+            spawnY: 4 * GameConstants.TILE_SIZE,
+            minX: 4 * GameConstants.TILE_SIZE,
+            maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            initialFacing: Direction.Left);
+
+        // Ejecutar 3 caídas de la momia
+        for (int i = 0; i < 3; i++)
+        {
+            puzzle.Trap2.Open();
+            grid.SetTile(puzzle.Trap2Coord.X, puzzle.Trap2Coord.Y, TileType.Empty);
+            mummy.SetPosition(13 * GameConstants.TILE_SIZE + 1f, 4 * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player, mummy);
+
+            mummy.SetPosition(13 * GameConstants.TILE_SIZE + 1f, 13 * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player, mummy);
+        }
+
+        Assert.Equal(3, puzzle.Mummy2TrapFallCount);
+        Assert.False(mummy.IsActive);
+        Assert.True(puzzle.IsTreasure4Pending, "Treasure4 debe quedar en estado pendiente");
+        Assert.False(puzzle.IsTreasure4Spawned);
+
+        // Ahora el jugador recolecta el cofre original en (17, 13)
+        var playerAtChamber = new Player(puzzle.TreasureCoord);
+        puzzle.Update(grid, playerAtChamber, mummy);
+
+        Assert.True(puzzle.Treasure.IsCollected);
+        Assert.False(puzzle.IsTreasure4Pending, "Tras recolectar el cofre actual, se resuelve el estado pendiente");
+        Assert.True(puzzle.IsTreasure4Spawned, "Treasure4 ahora está materializado en la cámara");
+        Assert.False(puzzle.Treasure4.IsCollected);
+
+        // En la siguiente actualización, el jugador recolecta el nuevo cofre
+        puzzle.Update(grid, playerAtChamber, mummy);
+        Assert.True(puzzle.Treasure4.IsCollected);
+        Assert.Equal(PuzzleManager.MSG_TREASURE4, puzzle.NotificationMessage);
+    }
 }

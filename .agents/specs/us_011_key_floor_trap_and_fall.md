@@ -17,7 +17,7 @@
      - La celda `(16, 9)` de la cuadrícula pasa a ser transitable sin suelo (`grid.SetTile(16, 9, TileType.Empty)`).
      - El jugador pierde la sustentación y entra de inmediato en estado de caída libre (`PlayerState.Falling`).
      - El jugador cae por gravedad a través del hueco abierto desde la Plataforma 1 ($Y = 128$) hasta el suelo del Nivel 0 ($Y = 208$, fila 14).
-     - Al ser una caída de 1 solo nivel ($1 - 0 = 1$), la caída es **no letal**: el jugador aterriza ileso en el Nivel 0 conservando todas sus vidas.
+     - Al caer por la trampa, el impacto en el piso elimina al jugador (`player.Eliminate()`), perdiendo 1 vida y requiriendo reiniciar la recámara si conserva vidas.
      - Como el jugador iba por el suelo ($Y = 128$) y la llave cuelga a $Y = 96$, el jugador nunca llega a alcanzar la llave.
      - Para asegurar que el jugador pueda regresar sin quedar atrapado, la apertura de la trampa abre también el pasaje del muro secreto `(14, 13)` si estuviese cerrado, permitiendo al jugador caminar hacia la izquierda, subir por la Escalera 1 (columna 5) y reintentar.
 3. **Mecánica Exclusiva de Salto para Recoger la Llave:**
@@ -50,7 +50,7 @@
 ---
 
 ## 4. Criterios de Aceptación (QA)
-1. **Apertura de Trampa al Pasar por Debajo:** Cuando el jugador camina por la Plataforma 1 hacia la columna 16, la trampa se abre y el jugador cae inmediatamente al Nivel 0 sin pérdida de vidas y sin haber tomado la llave.
+1. **Apertura de Trampa al Pasar por Debajo:** Cuando el jugador camina por la Plataforma 1 hacia la columna 16, la trampa se abre y el jugador cae al Nivel 0 perdiendo 1 vida (`player.IsEliminated == true`, `lives--`) y sin haber tomado la llave.
 2. **Llave Intacta tras Caída:** Tras caer el jugador por la trampa, la llave sigue sin recoger (`Key.IsCollected == false`).
 3. **Muro de Escape:** Al abrirse la trampa, el muro `(14, 13)` queda transitable para que el jugador pueda salir del recinto inferior y volver a subir por la Escalera 1.
 4. **Recolección en Salto:** Al saltar antes de llegar a la columna 16 (desde columna 15), el jugador recoge la llave en el aire (`Key.IsCollected == true`, +500 PTS) y aterriza a salvo en la columna 17.

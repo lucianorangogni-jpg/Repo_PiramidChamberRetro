@@ -45,11 +45,11 @@ El mural se ubica en el espacio vertical de la pared del Nivel 1 ($Y \in [96, 14
 
 ---
 
-## 3. Paleta Cromática y Restricciones Visuales
-- Canal R: $\le 90$
-- Canal G: $\le 70$
-- Canal B: $\le 55$
-- Los grabados se integran suavemente con el fondo de piedra arenisca sin entorpecer la legibilidad de las plataformas, momias ni el arqueólogo.
+## 3. Paleta Cromática y Restricciones Visuales (Ajuste de Contraste)
+- Canal R: $\le 170$ (relieve de arenisca y oro ceremonial $\ge 75$)
+- Canal G: $\le 135$
+- Canal B: $\le 95$
+- Los grabados se integran con elegancia en la pared de fondo con suficiente contraste para ser distinguidos claramente por el jugador, sin eclipsar las plataformas, momias, tesoros ni al arqueólogo (cuyo brillo alcanza 188-255).
 
 ---
 

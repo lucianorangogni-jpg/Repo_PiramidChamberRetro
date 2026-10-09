@@ -39,16 +39,18 @@ El mural se ubica en el espacio vertical de la pared del Nivel 0 ($Y \in [160, 2
 
 ---
 
-## 3. Paleta Cromática y Sutileza Visual
-Para cumplir el requerimiento de *"poco visibles con una tonada muy suave, que apenas se puedan distinguir"*:
+## 3. Paleta Cromática y Sutileza Visual (Ajuste de Contraste)
+Para permitir que los dibujos y glifos se distingan con claridad en pantalla sin perder su condición de bajorrelieve en la pared de fondo:
 - Fondo de la cámara: `RGB(18, 12, 22)`.
-- Ranuras talladas en bajo relieve (sombras de cantería): `RGB(24, 16, 26)`.
-- Superficie de piedra tallada (relieve base): `RGB(38, 28, 30)`.
-- Pigmento ocre/arenisca envejecido (glifos): `RGB(52, 40, 32)`.
-- Toques tenues de oro ceremonial desvanecido: `RGB(68, 52, 34)`.
-- Toques tenues de turquesa egipcio apagado: `RGB(28, 44, 46)`.
+- Ranuras talladas en bajo relieve (hendiduras / sombras): `RGB(38, 28, 34)`.
+- Superficie de piedra tallada (relieve base de arenisca): `RGB(78, 58, 48)`.
+- Pigmento ocre egipcio cálido (cuerpo y adornos): `RGB(105, 78, 50)`.
+- Oro ceremonial antiguo (cofres, llave, puertas): `RGB(136, 102, 52)`.
+- Oro radiante místico (tesoro recargado y destellos): `RGB(165, 126, 62)`.
+- Toques de turquesa / malaquita egipcia: `RGB(45, 96, 90)`.
+- Pigmento terracota / rojo ritual (flechas): `RGB(115, 48, 38)`.
 
-El contraste resultante respecto al fondo es de apenas 15 a 35 unidades por canal, creando la atmósfera de incisiones en piedra desgastadas por milenios.
+El contraste resultante respecto al fondo eleva el relieve por encima de las 60-140 unidades de diferencia relativa en los canales principales, permitiendo que el jugador distinga nítidamente los dibujos del puzle mientras se mantienen por debajo del brillo del primer plano (`R <= 170`, frente al `188-255` de baldosas y entidades interactivas).
 
 ---
 

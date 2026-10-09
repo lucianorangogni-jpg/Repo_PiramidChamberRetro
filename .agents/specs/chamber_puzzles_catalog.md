@@ -62,7 +62,7 @@ Dentro de la pirámide ancestral, cada recámara presenta una serie de desafíos
   - Muro de escape inferior: `(14, 13)`
 - **Mecánica de resolución:**
   - La llave cuelga a 3 baldosas de altura sobre el suelo, fuera del alcance caminando.
-  - Si el jugador camina por la columna 16, la trampa se dispara: el piso cede y el jugador cae en caída libre al Nivel 0 sin vidas perdidas, perdiendo la oportunidad de coger la llave en esa pasada. (El muro en `(14, 13)` se abre para permitirle salir y volver a subir por la Escalera 1).
+  - Si el jugador camina por la columna 16, la trampa se dispara: el piso cede y el jugador cae al Nivel 0 perdiendo 1 vida (`player.Eliminate()`). Para evitarlo y tomar la llave, debe saltar.
   - **Solución:** Saltar anticipadamente desde la columna 15 hacia la 17. En la parábola del salto (frame 12, altura 28 px), el arqueólogo intercepta la llave en el aire y aterriza sano y salvo en la columna 17 sobrevolando la trampa.
 - **Efecto / Recompensa:**
   - Otorga **+500 puntos** y posesión de la llave (`HasKey = true`).
@@ -129,6 +129,7 @@ Dentro de la pirámide ancestral, cada recámara presenta una serie de desafíos
   - **Recompensa (Nuevo Tesoro en Cámara Nivel 0):**
     - Tras la 3.ª caída de la momia, se engendra un nuevo tesoro en la cámara de Nivel 0 en `(17, 13)` (`Treasure4`).
     - Si el tesoro actual de la cámara aún no ha sido recogido por el jugador, queda marcado como pendiente (`IsTreasure4Pending = true`) y se materializa inmediatamente en cuanto el jugador saquee el actual.
+- **Pista visual en el escenario [US-019]:** En la pared de fondo del Nivel 2 (filas 1 a 4, $X \in [120, 286]$) se encuentran grabados jeroglíficos egipcios con paleta de contraste nítido, indicando visualmente la fórmula: `[Momia + Trampa con 3 Marcas (III)] -> [Momia Cayendo por la Trampa (3x ⬇)] -> [Nuevo Tesoro Sagrado Renacido en Cámara (☥)]`.
 - **Efecto / Recompensa:**
   - Desactiva permanentemente la amenaza de la momia de Nivel 2.
   - Otorga **+1000 puntos** adicionales al recolectar el tesoro 4 en la cámara de Nivel 0.
@@ -166,7 +167,7 @@ Dentro de la pirámide ancestral, cada recámara presenta una serie de desafíos
   - Suelo de plataforma: Columnas 3 a 17 en Fila 10.
 - **Mecánica de resolución:**
   - La trampa de suelo se sitúa en la fila 10 directamente bajo la llave colgada en fila 7.
-  - Al pisar la columna 16 a pie, el suelo se abre y el jugador cae al Nivel 0.
+  - Al pisar la columna 16 a pie, el suelo se abre y el jugador cae al Nivel 0 perdiendo 1 vida.
   - Requiere ejecutar un salto de precisión desde la columna 15 hacia la 17 para atrapar la llave suspendida y aterrizar en la plataforma extendida.
 - **Efecto / Recompensa:**
   - **+500 puntos** y obtención de la llave sagrada para la salida.
@@ -196,12 +197,12 @@ Dentro de la pirámide ancestral, cada recámara presenta una serie de desafíos
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Recámara 1** | **Puzle 1** | **Recarga Secreta del Tesoro** | Nivel 0 `(8, 13)` / `(17, 13)` | +1000 | 2 tesoros y llave recogidos + 3 ciclos puerta (activación única) |
 | **Recámara 1** | **Puzle 2** | **Apertura de Cámara del Tesoro** | Nivel 0 `(8, 13)` / `(14, 13)` | +1000 | Pisar losa para abrir muro y llegar al cofre |
-| **Recámara 1** | **Puzle 3** | **Llave Colgada y Trampa de Suelo** | Nivel 1 `(16, 6)` / `(16, 9)` | +500 | Salto desde col 15 a 17 sobre trampa para tomar llave |
+| **Recámara 1** | **Puzle 3** | **Llave Colgada y Trampa de Suelo** | Nivel 1 `(16, 6)` / `(16, 9)` | +500 | Salto desde col 15 a 17 sobre trampa para tomar llave (caer en trampa pierde 1 vida) |
 | **Recámara 1** | **Puzle 4** | **Salto al Descansillo y Puerta de Salida** | Nivel 2 `(1, 4)` / col 3 foso | Salida | Salto sobre foso col 3 y contacto con puerta teniendo llave |
 | **Recámara 1** | **Puzle 5** | **Momia al Foso y Tesoro Ancestral** | Nivel 1 -> 0 / cofre `(17, 13)` | +1000 | Saltar 4 veces sobre momia despierta, guiarla al foso y saquear cofre en cámara |
 | **Recámara 1** | **Puzle 6** | **Trampa Temporal y Derrota de Momia** | Nivel 2 `(13, 5)` / cofre `(17, 13)` | +1000 | Abrir trampa saltando, hacer caer a la momia 3 veces y recoger nuevo tesoro en cámara |
 | **Recámara 1** | Extra | **Cofre Superior de Plataforma 2** | Nivel 2 `(8, 4)` | +1000 | Recoger cofre en plataforma superior |
 | **Recámara 2** | **Puzle 1** | **Apertura de Cámara del Tesoro** | Nivel 0 `(8, 13)` / `(14, 13)` | +1000 | Pisar losa para abrir muro y llegar al cofre |
-| **Recámara 2** | **Puzle 2** | **Llave Colgada y Trampa en Nivel Elevado** | Nivel 1 `(16, 7)` / `(16, 10)` | +500 | Salto sobre trampa en fila 10 para recoger llave en fila 7 |
+| **Recámara 2** | **Puzle 2** | **Llave Colgada y Trampa en Nivel Elevado** | Nivel 1 `(16, 7)` / `(16, 10)` | +500 | Salto sobre trampa en fila 10 para recoger llave en fila 7 (caer en trampa pierde 1 vida) |
 | **Recámara 2** | **Puzle 3** | **Patrulla de la Momia y Puerta de Salida** | Nivel 2 `(1, 5)` / momia col 4-18 | Salida | Esquivar momia, saltar foso col 3 y abrir puerta con llave |
 | **Recámara 2** | Extra | **Cofre Custodiado por la Momia** | Nivel 2 `(8, 5)` | +1000 | Recoger cofre evadiendo la patrulla de la momia |

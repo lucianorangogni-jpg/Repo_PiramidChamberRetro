@@ -262,7 +262,7 @@ public class PuzzleManagerTests
     }
 
     [Fact]
-    public void PassingUnderKey_PlayerFallsToLevel0_WithoutLosingLives_AndDoesNotGetKey()
+    public void PassingUnderKey_PlayerFallsToLevel0_LosesLife_AndIsEliminated()
     {
         var (grid, puzzle) = CreateTestSetup();
         var player = new Player(16 * GameConstants.TILE_SIZE + 1f, 8 * GameConstants.TILE_SIZE);
@@ -271,6 +271,7 @@ public class PuzzleManagerTests
         // Al pasar por debajo, se activa la trampa
         puzzle.Update(grid, player);
         Assert.Equal(PlayerState.Falling, player.State);
+        Assert.True(puzzle.IsPlayerTrappedInTrap);
 
         // Simular la caída paso a paso hasta que aterriza en el suelo del Nivel 0 (fila 14, Y = 208)
         var neutral = new RetroGamePiramid.Input.PlayerInput(false, false, false, false, false);
@@ -278,15 +279,15 @@ public class PuzzleManagerTests
         {
             player.Update(grid, in neutral);
             puzzle.Update(grid, player);
-            if (player.State == PlayerState.Idle)
+            if (player.IsEliminated)
                 break;
         }
 
-        // El jugador debe aterrizar en el suelo inferior (Nivel 0) ileso con sus 3 vidas intactas
-        Assert.Equal(PlayerState.Idle, player.State);
-        Assert.Equal(3, player.Lives);
-        Assert.False(player.IsEliminated);
-        Assert.Equal(13 * GameConstants.TILE_SIZE, player.Position.Y); // Sobre fila 14 (suelo nivel 0)
+        // El jugador cayó por la trampa: pierde 1 vida y queda en estado Eliminado
+        Assert.Equal(PlayerState.Eliminated, player.State);
+        Assert.Equal(2, player.Lives);
+        Assert.True(player.IsEliminated);
+        Assert.True(puzzle.HasTrapEliminated);
 
         // La llave NO fue recogida durante la caída
         Assert.False(puzzle.Key.IsCollected);
@@ -684,6 +685,35 @@ public class PuzzleManagerTests
         Assert.Equal(TileType.Empty, grid.GetTile(puzzle.TrapCoord));
         Assert.Equal(PlayerState.Falling, player.State);
         Assert.Equal(PuzzleManager.MSG_TRAP, puzzle.NotificationMessage);
+    }
+
+    [Fact]
+    public void Chamber2_PassingUnderKey_PlayerFallsToLevel0_LosesLife_AndIsEliminated()
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(2);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, 2);
+
+        var player = new Player(16 * GameConstants.TILE_SIZE, 9 * GameConstants.TILE_SIZE);
+        Assert.Equal(3, player.Lives);
+
+        puzzle.Update(grid, player);
+        Assert.Equal(PlayerState.Falling, player.State);
+
+        var neutral = new RetroGamePiramid.Input.PlayerInput(false, false, false, false, false);
+        for (int frame = 0; frame < 60; frame++)
+        {
+            player.Update(grid, in neutral);
+            puzzle.Update(grid, player);
+            if (player.IsEliminated)
+                break;
+        }
+
+        Assert.Equal(PlayerState.Eliminated, player.State);
+        Assert.Equal(2, player.Lives);
+        Assert.True(player.IsEliminated);
+        Assert.True(puzzle.HasTrapEliminated);
     }
 
     [Fact]
@@ -1095,5 +1125,60 @@ public class PuzzleManagerTests
         puzzle.Update(grid, playerAtChamber, mummy);
         Assert.True(puzzle.Treasure4.IsCollected);
         Assert.Equal(PuzzleManager.MSG_TREASURE4, puzzle.NotificationMessage);
+    }
+
+    [Fact]
+    public void Chamber1_FallingThroughTrap2_SteeringOntoLevel1_DoesNotEliminatePlayer_WhenReachingLevel0()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+
+        // Colocar al jugador en plataforma 2 sobre la trampa (columna 13)
+        var player = new Player(13 * GameConstants.TILE_SIZE + 1f, 4 * GameConstants.TILE_SIZE);
+        var walkRight = new RetroGamePiramid.Input.PlayerInput(left: false, right: true, up: false, down: false, jump: false);
+
+        player.Update(grid, in walkRight);
+        puzzle.Update(grid, player);
+
+        // La trampa se abre y el jugador entra en caída
+        Assert.True(puzzle.Trap2.IsOpen);
+        Assert.Equal(PlayerState.Falling, player.State);
+        Assert.True(puzzle.IsPlayerTrappedInTrap2);
+
+        // Mientras cae, el jugador maniobra hacia la izquierda (retro drift) aterrizando en columna 12 (Nivel 1, Y = 128)
+        var driftLeft = new RetroGamePiramid.Input.PlayerInput(left: true, right: false, up: false, down: false, jump: false);
+        int frame = 0;
+        while (player.State == PlayerState.Falling && frame < 50)
+        {
+            player.Update(grid, in driftLeft);
+            puzzle.Update(grid, player);
+            frame++;
+        }
+
+        // El jugador ha aterrizado con éxito en Plataforma 1 (fila 9, Y = 128)
+        Assert.Equal(128f, player.Position.Y);
+        Assert.False(player.IsEliminated);
+        Assert.Equal(3, player.Lives);
+        Assert.False(puzzle.IsPlayerTrappedInTrap2, "La bandera de trampa debe reiniciarse porque el jugador aterrizó y pisó el Nivel 1");
+
+        // Ahora el jugador continúa su camino y desciende al Nivel 0 (caminando al hueco col 11 para caer a Nivel 0)
+        var walkLeft = new RetroGamePiramid.Input.PlayerInput(left: true, right: false, up: false, down: false, jump: false);
+        for (int i = 0; i < 20; i++)
+        {
+            player.Update(grid, in walkLeft);
+            puzzle.Update(grid, player);
+        }
+
+        var neutral = new RetroGamePiramid.Input.PlayerInput(false, false, false, false, false);
+        for (int i = 0; i < 60; i++)
+        {
+            player.Update(grid, in neutral);
+            puzzle.Update(grid, player);
+        }
+
+        // El jugador llega al Nivel 0 (Y = 208): NO debe perder vida ni ser eliminado
+        Assert.Equal(208f, player.Position.Y);
+        Assert.False(player.IsEliminated, "El jugador no debe ser eliminado al llegar a Nivel 0 tras haber pisado Nivel 1");
+        Assert.Equal(3, player.Lives);
+        Assert.False(puzzle.HasTrap2Eliminated);
     }
 }

@@ -394,6 +394,78 @@ public class PlayerTests
     }
 
     [Fact]
+    public void Fall_FromLevel2_ViaEmptyGap_LandingOnLevel1_ThenFallingToLevel0_DoesNotEliminatePlayer()
+    {
+        var grid = CreateTestRoom();
+        // Iniciar en Plataforma 2 (fila 4, Y = 64, columna 4)
+        var player = new Player(4 * GameConstants.TILE_SIZE, 4 * GameConstants.TILE_SIZE);
+
+        // 1. Caminar a la izquierda para caer por el hueco de columna 3 hacia Plataforma 1
+        var leftInput = new PlayerInput(left: true, right: false, up: false, down: false, jump: false);
+        for (int i = 0; i < 10; i++)
+        {
+            player.Update(grid, in leftInput);
+        }
+
+        var neutral = new PlayerInput(false, false, false, false, false);
+        for (int i = 0; i < 50; i++)
+        {
+            player.Update(grid, in neutral);
+        }
+
+        // Aterriza en Plataforma 1 (Y = 128)
+        Assert.Equal(128f, player.Position.Y);
+        Assert.False(player.IsEliminated);
+        Assert.Equal(Player.INITIAL_LIVES, player.Lives);
+
+        // 2. Ahora camina a la izquierda hacia columna 1 (hueco vacío en Plataforma 1)
+        for (int i = 0; i < 25; i++)
+        {
+            player.Update(grid, in leftInput);
+        }
+
+        // Cae desde Nivel 1 hasta Nivel 0
+        for (int i = 0; i < 60; i++)
+        {
+            player.Update(grid, in neutral);
+        }
+
+        // Aterriza en el suelo del Nivel 0 (Y = 208)
+        Assert.Equal(208f, player.Position.Y);
+        Assert.False(player.IsEliminated, "El jugador pisó el Nivel 1, por lo que su posterior descenso a Nivel 0 no debe costarle una vida");
+        Assert.Equal(Player.INITIAL_LIVES, player.Lives);
+        Assert.Equal(PlayerState.Idle, player.State);
+    }
+
+    [Fact]
+    public void Fall_FromLevel2_DirectlyToLevel0_EliminatesPlayer_AndLosesLife()
+    {
+        var grid = CreateTestRoom();
+        // Columna 17 es el extremo derecho de Plataforma 2 (fila 4, Y = 64).
+        // A la derecha, columna 18 está vacía tanto en Nivel 2 como en Nivel 1.
+        // Caída directa de Nivel 2 a Nivel 0: debe ser letal (pierde 1 vida).
+        var player = new Player(17 * GameConstants.TILE_SIZE, 4 * GameConstants.TILE_SIZE);
+
+        var rightInput = new PlayerInput(left: false, right: true, up: false, down: false, jump: false);
+        for (int i = 0; i < 10; i++)
+        {
+            player.Update(grid, in rightInput);
+        }
+
+        var neutral = new PlayerInput(false, false, false, false, false);
+        for (int i = 0; i < 80; i++)
+        {
+            player.Update(grid, in neutral);
+        }
+
+        // Aterriza en el suelo del Nivel 0 (Y = 208)
+        Assert.Equal(208f, player.Position.Y);
+        Assert.True(player.IsEliminated, "La caída directa desde Nivel 2 a Nivel 0 sin tocar Nivel 1 debe eliminar al jugador");
+        Assert.Equal(Player.INITIAL_LIVES - 1, player.Lives);
+        Assert.Equal(PlayerState.Eliminated, player.State);
+    }
+
+    [Fact]
     public void Fall_FromLevel3_Scenarios_ValidateTwoLevelLethalityRule()
     {
         var grid = new RoomGrid();

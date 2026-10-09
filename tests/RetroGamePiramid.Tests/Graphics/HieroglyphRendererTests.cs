@@ -19,26 +19,34 @@ public class HieroglyphRendererTests
     }
 
     [Fact]
-    public void GenerateMuralPixels_ContainsLowContrastSubtlePalette()
+    public void GenerateMuralPixels_ContainsEnhancedContrastReliefPalette()
     {
-        // El requerimiento exige que los grabados sean "poco visibles con una tonada muy suave, que apenas se puedan distinguir"
-        // El fondo de la cámara es RGB(18, 12, 22). Los píxeles dibujados deben tener brillo suave (canales <= 90)
+        // El requerimiento exige que los grabados tengan mayor contraste para distinguirse claramente,
+        // pero manteniéndose como bajorrelieves de pared de fondo sin competir con el brillo del primer plano (R <= 170).
         Color[] pixels = HieroglyphRenderer.GenerateMuralPixels(HieroglyphRenderer.MURAL_WIDTH, HieroglyphRenderer.MURAL_HEIGHT);
 
         int nonTransparentCount = 0;
+        int clearlyVisibleCount = 0;
         foreach (Color c in pixels)
         {
             if (c.A > 0)
             {
                 nonTransparentCount++;
-                // Ningún píxel del mural de fondo debe tener brillo deslumbrante (debe ser sutil bajorrelieve)
-                Assert.True(c.R <= 90, $"El canal R ({c.R}) supera el umbral suave");
-                Assert.True(c.G <= 70, $"El canal G ({c.G}) supera el umbral suave");
-                Assert.True(c.B <= 55, $"El canal B ({c.B}) supera el umbral suave");
+                // Los píxeles deben mantenerse en tonos de fondo (por debajo del brillo del primer plano ~188-255)
+                Assert.True(c.R <= 170, $"El canal R ({c.R}) supera el umbral de fondo");
+                Assert.True(c.G <= 135, $"El canal G ({c.G}) supera el umbral de fondo");
+                Assert.True(c.B <= 95, $"El canal B ({c.B}) supera el umbral de fondo");
+
+                // Verificar que tenga contraste distinguible sobre el fondo (18, 12, 22)
+                if (c.R >= 75)
+                {
+                    clearlyVisibleCount++;
+                }
             }
         }
 
         Assert.True(nonTransparentCount > 500, "El mural debe contener al menos 500 píxeles de grabados tallados");
+        Assert.True(clearlyVisibleCount > 300, "El mural debe contener al menos 300 píxeles con relieve claramente visible");
     }
 
     [Fact]
@@ -117,25 +125,32 @@ public class HieroglyphRendererTests
     }
 
     [Fact]
-    public void GenerateMuralLevel1Pixels_ContainsLowContrastSubtlePalette()
+    public void GenerateMuralLevel1Pixels_ContainsEnhancedContrastReliefPalette()
     {
         Color[] pixels = HieroglyphRenderer.GenerateMuralLevel1Pixels(
             HieroglyphRenderer.MURAL_LEVEL1_WIDTH,
             HieroglyphRenderer.MURAL_LEVEL1_HEIGHT);
 
         int nonTransparentCount = 0;
+        int clearlyVisibleCount = 0;
         foreach (Color c in pixels)
         {
             if (c.A > 0)
             {
                 nonTransparentCount++;
-                Assert.True(c.R <= 90, $"El canal R ({c.R}) supera el umbral suave");
-                Assert.True(c.G <= 70, $"El canal G ({c.G}) supera el umbral suave");
-                Assert.True(c.B <= 55, $"El canal B ({c.B}) supera el umbral suave");
+                Assert.True(c.R <= 170, $"El canal R ({c.R}) supera el umbral de fondo");
+                Assert.True(c.G <= 135, $"El canal G ({c.G}) supera el umbral de fondo");
+                Assert.True(c.B <= 95, $"El canal B ({c.B}) supera el umbral de fondo");
+
+                if (c.R >= 75)
+                {
+                    clearlyVisibleCount++;
+                }
             }
         }
 
         Assert.True(nonTransparentCount > 400, "El mural de Nivel 1 debe contener al menos 400 píxeles de bajorrelieve tallado");
+        Assert.True(clearlyVisibleCount > 250, "El mural de Nivel 1 debe contener al menos 250 píxeles con relieve claramente visible");
     }
 
     [Fact]
@@ -175,5 +190,97 @@ public class HieroglyphRendererTests
 
         // 9. Cruz Ankh ☥ sagrada junto al cofre en x=204, y=21
         Assert.NotEqual(Color.Transparent, pixels[21 * width + 204]);
+    }
+
+    [Fact]
+    public void GenerateMuralLevel2Pixels_ReturnsArrayWithExactDimensions()
+    {
+        const int width = HieroglyphRenderer.MURAL_LEVEL2_WIDTH;
+        const int height = HieroglyphRenderer.MURAL_LEVEL2_HEIGHT;
+
+        Color[] pixels = HieroglyphRenderer.GenerateMuralLevel2Pixels(width, height);
+
+        Assert.NotNull(pixels);
+        Assert.Equal(width * height, pixels.Length);
+        Assert.Equal(320, width);
+        Assert.Equal(64, height);
+        Assert.Equal(16, HieroglyphRenderer.MURAL_LEVEL2_Y);
+    }
+
+    [Fact]
+    public void GenerateMuralLevel2Pixels_ContainsEnhancedContrastReliefPalette()
+    {
+        Color[] pixels = HieroglyphRenderer.GenerateMuralLevel2Pixels(
+            HieroglyphRenderer.MURAL_LEVEL2_WIDTH,
+            HieroglyphRenderer.MURAL_LEVEL2_HEIGHT);
+
+        int nonTransparentCount = 0;
+        int clearlyVisibleCount = 0;
+        foreach (Color c in pixels)
+        {
+            if (c.A > 0)
+            {
+                nonTransparentCount++;
+                Assert.True(c.R <= 170, $"El canal R ({c.R}) supera el umbral de fondo");
+                Assert.True(c.G <= 135, $"El canal G ({c.G}) supera el umbral de fondo");
+                Assert.True(c.B <= 95, $"El canal B ({c.B}) supera el umbral de fondo");
+
+                if (c.R >= 75)
+                {
+                    clearlyVisibleCount++;
+                }
+            }
+        }
+
+        Assert.True(nonTransparentCount > 400, "El mural de Nivel 2 debe contener al menos 400 píxeles de bajorrelieve tallado");
+        Assert.True(clearlyVisibleCount > 250, "El mural de Nivel 2 debe contener al menos 250 píxeles con relieve claramente visible");
+    }
+
+    [Fact]
+    public void GenerateMuralLevel2Pixels_ContainsMummyTrapFallAndTreasureSequence()
+    {
+        const int width = HieroglyphRenderer.MURAL_LEVEL2_WIDTH;
+        Color[] pixels = HieroglyphRenderer.GenerateMuralLevel2Pixels(
+            width,
+            HieroglyphRenderer.MURAL_LEVEL2_HEIGHT);
+
+        // 1. Las 3 marcas rituales sagradas (III) sobre la trampa y la momia en y=8..10
+        Assert.NotEqual(Color.Transparent, pixels[8 * width + 144]); // Marca 1
+        Assert.NotEqual(Color.Transparent, pixels[8 * width + 148]); // Marca 2
+        Assert.NotEqual(Color.Transparent, pixels[8 * width + 152]); // Marca 3
+
+        // 2. Glifo de la Momia guardiana erguida en x=130, y=26
+        Assert.NotEqual(Color.Transparent, pixels[26 * width + 130]);
+
+        // 3. Trampa de suelo en x=145, y=42
+        Assert.NotEqual(Color.Transparent, pixels[42 * width + 145]);
+
+        // 4. Conector ritual 1: Flecha hacia la derecha en x=176, y=29
+        Assert.NotEqual(Color.Transparent, pixels[29 * width + 176]);
+
+        // 5. Las 3 marcas de caídas en Glifo 2 en x=188, y=10
+        Assert.NotEqual(Color.Transparent, pixels[10 * width + 188]);
+
+        // 6. Flecha ritual descendente (⬇) de la caída por la trampa en x=206, y=14
+        Assert.NotEqual(Color.Transparent, pixels[14 * width + 206]);
+
+        // 7. Momia precipitándose por el hueco de la trampa en x=208, y=26
+        Assert.NotEqual(Color.Transparent, pixels[26 * width + 208]);
+
+        // 8. Trampilla abierta con foso en x=200, y=42
+        Assert.NotEqual(Color.Transparent, pixels[42 * width + 200]);
+
+        // 9. Conector ritual 2: Flecha hacia la derecha en x=236, y=29
+        Assert.NotEqual(Color.Transparent, pixels[29 * width + 236]);
+
+        // 10. Cuarto Cofre Sagrado Renovado en x=251, y=10 (rayo) y x=251, y=20 (cuerpo)
+        Assert.NotEqual(Color.Transparent, pixels[10 * width + 251]);
+        Assert.NotEqual(Color.Transparent, pixels[20 * width + 251]);
+
+        // 11. Cruz Ankh (☥) sagrada de vida / renacimiento en x=265, y=18
+        Assert.NotEqual(Color.Transparent, pixels[18 * width + 265]);
+
+        // 12. Indicador de la cámara del tesoro de Nivel 0 en x=275, y=21
+        Assert.NotEqual(Color.Transparent, pixels[21 * width + 275]);
     }
 }

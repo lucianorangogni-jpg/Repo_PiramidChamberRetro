@@ -572,6 +572,8 @@ public sealed class Player
         else
         {
             _state = PlayerState.Idle;
+            _fallStartY = landingY;
+            _fallStartPlatformLevel = landLevel;
         }
     }
 

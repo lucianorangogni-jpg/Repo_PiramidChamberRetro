@@ -20,7 +20,7 @@ public sealed class PuzzleManager
     public GridCoord Treasure2Coord { get; private set; } = new(8, 4);
     public GridCoord Treasure3Coord { get; private set; } = new(17, 13);
     public GridCoord Treasure4Coord { get; private set; } = new(17, 13);
-    public GridCoord ExitDoorCoord { get; private set; } = new(1, 4);
+    public GridCoord ExitDoorCoord { get; private set; } = new(18, 4);
     public GridCoord KeyCoord { get; private set; } = new(16, 6);
     public GridCoord TrapCoord { get; private set; } = new(16, 9);
     public GridCoord Trap2Coord { get; private set; } = new(13, 5);
@@ -155,7 +155,7 @@ public sealed class PuzzleManager
             Treasure2Coord = new(8, 4);
             Treasure3Coord = new(17, 13);
             Treasure4Coord = new(17, 13);
-            ExitDoorCoord = new(1, 4);
+            ExitDoorCoord = new(18, 4);
             KeyCoord = new(16, 6);
             TrapCoord = new(16, 9);
             Trap2Coord = new(13, 5);
@@ -569,14 +569,8 @@ public sealed class PuzzleManager
                     Trap2OpenTimer = 0;
                 }
 
-                // Si el jugador aterriza o pisa la plataforma del Nivel 1 (no está cayendo),
-                // la trampa del Nivel 2 ya no es letal para él (no fue caída directa al Nivel 0)
-                int playerPlatformLevel = grid.GetPlatformLevel(player.Position.Y);
-                if ((playerPlatformLevel == 1 || MathF.Abs(player.Position.Y - (9 * GameConstants.TILE_SIZE - Player.HEIGHT)) <= 4f) && player.State != PlayerState.Falling)
-                {
-                    IsPlayerTrappedInTrap2 = false;
-                }
-                else if (!HasTrap2Eliminated && (player.Position.Y >= 13 * GameConstants.TILE_SIZE || player.IsEliminated))
+                // Si el jugador cayó por la trampa del Nivel 2, pierde una vida al completar la caída (ya sea aterrizando en Nivel 1 o en Nivel 0)
+                if (!HasTrap2Eliminated && (player.Position.Y >= 13 * GameConstants.TILE_SIZE || (player.State == PlayerState.Idle && player.Position.Y > Trap2Coord.Y * GameConstants.TILE_SIZE) || player.IsEliminated))
                 {
                     HasTrap2Eliminated = true;
                     if (!player.IsEliminated)

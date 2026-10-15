@@ -35,6 +35,7 @@ public class Game1 : Game
     private KeyboardState _prevKeyboardState;
     private int _currentChamber = 1;
     private bool _wasJumpingOverMummy;
+    private int _respawnTimer;
 
     private const string HUD_ROOM_NAME = "RECAMARA 1";
     private const string HUD_TEXT_MENU = "1: SALIR AL MENU";
@@ -114,10 +115,10 @@ public class Game1 : Game
 
         // Inicialización de la momia (enemigo patrullero en plataforma 2) y su renderizador
         _mummy = new Mummy(
-            spawnX: 13 * GameConstants.TILE_SIZE,
+            spawnX: 15 * GameConstants.TILE_SIZE,
             spawnY: 4 * GameConstants.TILE_SIZE,
-            minX: 4 * GameConstants.TILE_SIZE,
-            maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            minX: 2 * GameConstants.TILE_SIZE,
+            maxX: 16 * GameConstants.TILE_SIZE - Mummy.WIDTH,
             initialFacing: Direction.Right);
 
         // Momia guardiana de la plataforma 1 (Recámara 1): inicialmente inmóvil a la izquierda
@@ -265,13 +266,29 @@ public class Game1 : Game
                 _titleMenu.SelectedChamber = _currentChamber;
                 _currentScreen = GameScreen.TitleMenu;
             }
-            // Toque 2: Re-iniciar la pantalla (solo si el jugador aún tiene vidas)
+            // Toque 2: Re-iniciar la pantalla manualmente (solo si el jugador aún tiene vidas)
             else if (pressMenu2 && _player.Lives > 0)
             {
+                _respawnTimer = 0;
                 RestartCurrentRoom();
             }
-            else if (!_player.IsEliminated)
+            else if (_player.IsEliminated)
             {
+                // Si el jugador fue eliminado pero aún conserva vidas, reaparece (respawn)
+                // automáticamente sin quedar bloqueado en la pantalla de Eliminado.
+                if (_player.Lives > 0)
+                {
+                    _respawnTimer++;
+                    if (_respawnTimer >= 60)
+                    {
+                        _respawnTimer = 0;
+                        RestartCurrentRoom();
+                    }
+                }
+            }
+            else
+            {
+                _respawnTimer = 0;
                 // Muestreo de entrada y actualización del jugador, momias y puzle (cero allocations)
                 PlayerInput input = PlayerInput.FromKeyboard(keyboard);
                 _player.Update(_roomGrid, in input);
@@ -348,6 +365,7 @@ public class Game1 : Game
     /// </summary>
     public void LoadChamber(int chamberNumber)
     {
+        _respawnTimer = 0;
         _wasJumpingOverMummy = false;
         _currentChamber = chamberNumber;
         _roomGrid.LoadChamber(chamberNumber);
@@ -373,8 +391,8 @@ public class Game1 : Game
             _mummy.Configure(
                 spawnX: 15 * GameConstants.TILE_SIZE,
                 spawnY: 4 * GameConstants.TILE_SIZE,
-                minX: 4 * GameConstants.TILE_SIZE,
-                maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                minX: 2 * GameConstants.TILE_SIZE,
+                maxX: 16 * GameConstants.TILE_SIZE - Mummy.WIDTH,
                 initialFacing: Direction.Right);
 
             // En Recámara 1 la momia guardiana inicia inmóvil en el extremo izquierdo de plataforma 1
@@ -513,41 +531,24 @@ public class Game1 : Game
                 _pixelFont.DrawMiniText(_spriteBatch, "3: SALIR AL MENU", winX + 16, winY + 71, ChamberWinShadowColor);
                 _pixelFont.DrawMiniText(_spriteBatch, "3: SALIR AL MENU", winX + 15, winY + 70, ChamberWinOptionColor);
             }
-            // Modal de Eliminación / Game Over si el arqueólogo sufrió una caída fatal
-            else if (_player.IsEliminated)
+            // Modal de Game Over únicamente cuando el arqueólogo se queda sin vidas (0 vidas restantes)
+            else if (_player.IsEliminated && _player.Lives == 0)
             {
-                bool isGameOver = _player.Lives == 0;
                 int elimW = 130;
-                int elimH = isGameOver ? 40 : 48;
+                int elimH = 40;
                 int elimX = (GameConstants.VIRTUAL_WIDTH - elimW) / 2;
                 int elimY = (GameConstants.VIRTUAL_HEIGHT - elimH) / 2;
 
                 _pixelFont.DrawFrameBox(_spriteBatch, elimX, elimY, elimW, elimH, EliminatedBgColor, EliminatedBorderColor);
 
-                string modalTitle = isGameOver ? TEXT_GAME_OVER : TEXT_ELIMINATED;
-
                 // Título centrado en 8x8 con sombra
-                _pixelFont.DrawTextCentered(_spriteBatch, modalTitle, GameConstants.VIRTUAL_WIDTH, elimY + 8, EliminatedShadowColor, scale: 1);
-                _pixelFont.DrawTextCentered(_spriteBatch, modalTitle, GameConstants.VIRTUAL_WIDTH - 2, elimY + 7, EliminatedTitleColor, scale: 1);
+                _pixelFont.DrawTextCentered(_spriteBatch, TEXT_GAME_OVER, GameConstants.VIRTUAL_WIDTH, elimY + 8, EliminatedShadowColor, scale: 1);
+                _pixelFont.DrawTextCentered(_spriteBatch, TEXT_GAME_OVER, GameConstants.VIRTUAL_WIDTH - 2, elimY + 7, EliminatedTitleColor, scale: 1);
 
-                if (isGameOver)
-                {
-                    // Solo la opción de salir al menú
-                    int opt1X = elimX + (elimW - (HUD_TEXT_MENU.Length * 5)) / 2;
-                    _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_MENU, opt1X + 1, elimY + 24, EliminatedShadowColor);
-                    _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_MENU, opt1X, elimY + 23, HudTextColor);
-                }
-                else
-                {
-                    // Opciones centradas de salida o reinicio con vidas restantes
-                    int opt1X = elimX + (elimW - (HUD_TEXT_MENU.Length * 5)) / 2;
-                    _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_MENU, opt1X + 1, elimY + 23, EliminatedShadowColor);
-                    _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_MENU, opt1X, elimY + 22, HudTextColor);
-
-                    int opt2X = elimX + (elimW - (HUD_TEXT_CONTINUE.Length * 5)) / 2;
-                    _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_CONTINUE, opt2X + 1, elimY + 33, EliminatedShadowColor);
-                    _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_CONTINUE, opt2X, elimY + 32, HudTextColor);
-                }
+                // Solo la opción de salir al menú
+                int opt1X = elimX + (elimW - (HUD_TEXT_MENU.Length * 5)) / 2;
+                _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_MENU, opt1X + 1, elimY + 24, EliminatedShadowColor);
+                _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_MENU, opt1X, elimY + 23, HudTextColor);
             }
         }
 

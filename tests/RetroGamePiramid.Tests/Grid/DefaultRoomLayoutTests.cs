@@ -53,13 +53,18 @@ public class DefaultRoomLayoutTests
     [Fact]
     public void UpperPlatform_ContainsSolidWallsExceptLadderPosition()
     {
-        // Plataforma superior en fila 5, columnas 8 a 17
+        // Plataforma superior en fila 5, columnas 8 a 17 (con hueco en col 16)
         for (int x = 8; x <= 17; x++)
         {
             if (x == 10)
             {
                 // Escalera conectando a la plataforma superior
                 Assert.Equal(TileType.Ladder, _grid.GetTile(x, 5));
+            }
+            else if (x == 16)
+            {
+                // Hueco de salto hacia el descansillo de la puerta
+                Assert.Equal(TileType.Empty, _grid.GetTile(x, 5));
             }
             else
             {
@@ -97,12 +102,12 @@ public class DefaultRoomLayoutTests
         Assert.Equal(TileType.Empty, _grid.GetTile(3, 13));
         Assert.True(_grid.IsEmpty(3, 13));
 
-        // Puerta de salida en (1, 4) descansando sobre la plataforma de la fila 5
-        Assert.Equal(TileType.ExitDoor, _grid.GetTile(1, 4));
-        Assert.True(_grid.IsExitDoor(1, 4));
+        // Puerta de salida en (18, 4) descansando sobre la plataforma de la fila 5
+        Assert.Equal(TileType.ExitDoor, _grid.GetTile(18, 4));
+        Assert.True(_grid.IsExitDoor(18, 4));
 
-        // Comprobar que el suelo debajo de la puerta es sólido (1, 5)
-        Assert.Equal(TileType.SolidWall, _grid.GetTile(1, 5));
+        // Comprobar que el suelo debajo de la puerta es sólido (18, 5)
+        Assert.Equal(TileType.SolidWall, _grid.GetTile(18, 5));
     }
 
     [Fact]
@@ -180,16 +185,12 @@ public class DefaultRoomLayoutTests
     [Fact]
     public void Platform2_Layout_And_PlatformInfo_AreConfiguredCorrectly()
     {
-        // Descansillo de la puerta a la izquierda (fila 5, columnas 1 y 2)
-        Assert.Equal(TileType.SolidWall, _grid.GetTile(1, 5));
-        Assert.Equal(TileType.SolidWall, _grid.GetTile(2, 5));
+        // Espacio vacío a la izquierda (columna 1)
+        Assert.Equal(TileType.Empty, _grid.GetTile(1, 5));
+        Assert.True(_grid.IsEmpty(1, 5));
 
-        // Hueco de salto hacia la puerta (columna 3)
-        Assert.Equal(TileType.Empty, _grid.GetTile(3, 5));
-        Assert.True(_grid.IsEmpty(3, 5));
-
-        // Plataforma principal extendida (columnas 4 a 17)
-        for (int x = 4; x <= 17; x++)
+        // Plataforma principal (columnas 2 a 15)
+        for (int x = 2; x <= 15; x++)
         {
             if (x == 10)
                 Assert.Equal(TileType.Ladder, _grid.GetTile(x, 5));
@@ -197,15 +198,20 @@ public class DefaultRoomLayoutTests
                 Assert.Equal(TileType.SolidWall, _grid.GetTile(x, 5));
         }
 
-        // Espacio vacío a la derecha (columna 18)
-        Assert.Equal(TileType.Empty, _grid.GetTile(18, 5));
+        // Hueco de salto hacia el descansillo de la puerta a la derecha (columna 16)
+        Assert.Equal(TileType.Empty, _grid.GetTile(16, 5));
+        Assert.True(_grid.IsEmpty(16, 5));
+
+        // Descansillo de la puerta a la derecha (fila 5, columnas 17 y 18)
+        Assert.Equal(TileType.SolidWall, _grid.GetTile(17, 5));
+        Assert.Equal(TileType.SolidWall, _grid.GetTile(18, 5));
 
         // Registro de Plataforma Nivel 2
         var platform2 = _grid.Platforms[2];
         Assert.Equal(2, platform2.Level);
         Assert.Equal(5, platform2.Row);
-        Assert.Equal(1, platform2.StartCol);
-        Assert.Equal(17, platform2.EndCol);
+        Assert.Equal(2, platform2.StartCol);
+        Assert.Equal(18, platform2.EndCol);
         Assert.Equal("Plataforma Nivel 2", platform2.Name);
     }
 }

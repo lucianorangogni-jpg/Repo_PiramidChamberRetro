@@ -310,23 +310,23 @@ public class PlayerTests
     }
 
     [Fact]
-    public void Platform2_WalkRightOffEdge_FallsToPlatform0_TriggersEliminated()
+    public void Platform2_WalkLeftOffEdge_FallsToPlatform0_TriggersEliminated()
     {
         var grid = CreateTestRoom();
-        // Colocar al jugador en el extremo derecho de la Plataforma 2 (columna 17, fila 4, Y = 64)
-        var player = new Player(17 * GameConstants.TILE_SIZE, 4 * GameConstants.TILE_SIZE);
+        // Colocar al jugador en el extremo izquierdo de la Plataforma 2 (columna 2, fila 4, Y = 64)
+        var player = new Player(2 * GameConstants.TILE_SIZE, 4 * GameConstants.TILE_SIZE);
 
-        var rightInput = new PlayerInput(left: false, right: true, up: false, down: false, jump: false);
+        var leftInput = new PlayerInput(left: true, right: false, up: false, down: false, jump: false);
 
-        // Simular frames suficientes para caminar al vacío de columna 18 y caer hasta el suelo (Nivel 0)
+        // Simular frames suficientes para caminar al vacío de columna 1 y caer hasta el suelo (Nivel 0)
         for (int i = 0; i < 100; i++)
         {
-            player.Update(grid, in rightInput);
+            player.Update(grid, in leftInput);
         }
 
         // El jugador debe haber caído hasta el suelo inferior (Y = 208)
         Assert.Equal(208f, player.Position.Y);
-        Assert.True(player.Position.X >= 18 * GameConstants.TILE_SIZE, "Debe haber avanzado hacia la columna vacía 18");
+        Assert.True(player.Position.X <= 2 * GameConstants.TILE_SIZE, "Debe haber avanzado hacia la columna vacía 1");
 
         // Al caer desde la altura de la Plataforma Nivel 2 (9 celdas = 144 px), el jugador queda eliminado
         Assert.True(player.IsEliminated, "El jugador debe quedar eliminado al caer desde la altura de la Plataforma Nivel 2");
@@ -345,13 +345,13 @@ public class PlayerTests
     public void EliminatedPlayer_SetPositionRestoresToIdle()
     {
         var grid = CreateTestRoom();
-        var player = new Player(17 * GameConstants.TILE_SIZE, 4 * GameConstants.TILE_SIZE);
+        var player = new Player(2 * GameConstants.TILE_SIZE, 4 * GameConstants.TILE_SIZE);
 
         // Caer al vacío desde Nivel 2 hasta ser eliminado
-        var rightInput = new PlayerInput(left: false, right: true, up: false, down: false, jump: false);
+        var leftInput = new PlayerInput(left: true, right: false, up: false, down: false, jump: false);
         for (int i = 0; i < 100; i++)
         {
-            player.Update(grid, in rightInput);
+            player.Update(grid, in leftInput);
         }
         Assert.True(player.IsEliminated);
 
@@ -368,15 +368,15 @@ public class PlayerTests
     public void Fall_FromLevel2_ToLevel1_DoesNotEliminatePlayer()
     {
         var grid = CreateTestRoom();
-        // Columna 4 es el extremo izquierdo de la sección principal de Plataforma 2 (fila 4, Y = 64).
-        // Al caminar a la izquierda, entra al hueco de columna 3 y cae hacia la Plataforma 1 (fila 9, Y = 128).
+        // Columna 15 es el extremo derecho de la sección principal de Plataforma 2 (fila 4, Y = 64).
+        // Al caminar a la derecha, entra al hueco de columna 16 y cae hacia la Plataforma 1 (fila 9, Y = 128).
         // Caída de 1 nivel (Nivel 2 a Nivel 1): no debe eliminar al jugador.
-        var player = new Player(4 * GameConstants.TILE_SIZE, 4 * GameConstants.TILE_SIZE);
+        var player = new Player(15 * GameConstants.TILE_SIZE, 4 * GameConstants.TILE_SIZE);
 
-        var leftInput = new PlayerInput(left: true, right: false, up: false, down: false, jump: false);
+        var rightInput = new PlayerInput(left: false, right: true, up: false, down: false, jump: false);
         for (int i = 0; i < 10; i++)
         {
-            player.Update(grid, in leftInput);
+            player.Update(grid, in rightInput);
         }
 
         var neutral = new PlayerInput(false, false, false, false, false);
@@ -397,14 +397,14 @@ public class PlayerTests
     public void Fall_FromLevel2_ViaEmptyGap_LandingOnLevel1_ThenFallingToLevel0_DoesNotEliminatePlayer()
     {
         var grid = CreateTestRoom();
-        // Iniciar en Plataforma 2 (fila 4, Y = 64, columna 4)
-        var player = new Player(4 * GameConstants.TILE_SIZE, 4 * GameConstants.TILE_SIZE);
+        // Iniciar en Plataforma 2 (fila 4, Y = 64, columna 15)
+        var player = new Player(15 * GameConstants.TILE_SIZE, 4 * GameConstants.TILE_SIZE);
 
-        // 1. Caminar a la izquierda para caer por el hueco de columna 3 hacia Plataforma 1
-        var leftInput = new PlayerInput(left: true, right: false, up: false, down: false, jump: false);
+        // 1. Caminar a la derecha para caer por el hueco de columna 16 hacia Plataforma 1
+        var rightInput = new PlayerInput(left: false, right: true, up: false, down: false, jump: false);
         for (int i = 0; i < 10; i++)
         {
-            player.Update(grid, in leftInput);
+            player.Update(grid, in rightInput);
         }
 
         var neutral = new PlayerInput(false, false, false, false, false);
@@ -418,10 +418,10 @@ public class PlayerTests
         Assert.False(player.IsEliminated);
         Assert.Equal(Player.INITIAL_LIVES, player.Lives);
 
-        // 2. Ahora camina a la izquierda hacia columna 1 (hueco vacío en Plataforma 1)
+        // 2. Ahora camina a la derecha hacia columna 18 (hueco vacío en Plataforma 1)
         for (int i = 0; i < 25; i++)
         {
-            player.Update(grid, in leftInput);
+            player.Update(grid, in rightInput);
         }
 
         // Cae desde Nivel 1 hasta Nivel 0
@@ -441,15 +441,15 @@ public class PlayerTests
     public void Fall_FromLevel2_DirectlyToLevel0_EliminatesPlayer_AndLosesLife()
     {
         var grid = CreateTestRoom();
-        // Columna 17 es el extremo derecho de Plataforma 2 (fila 4, Y = 64).
-        // A la derecha, columna 18 está vacía tanto en Nivel 2 como en Nivel 1.
+        // Columna 2 es el extremo izquierdo de Plataforma 2 (fila 4, Y = 64).
+        // A la izquierda, columna 1 está vacía tanto en Nivel 2 como en Nivel 1.
         // Caída directa de Nivel 2 a Nivel 0: debe ser letal (pierde 1 vida).
-        var player = new Player(17 * GameConstants.TILE_SIZE, 4 * GameConstants.TILE_SIZE);
+        var player = new Player(2 * GameConstants.TILE_SIZE, 4 * GameConstants.TILE_SIZE);
 
-        var rightInput = new PlayerInput(left: false, right: true, up: false, down: false, jump: false);
+        var leftInput = new PlayerInput(left: true, right: false, up: false, down: false, jump: false);
         for (int i = 0; i < 10; i++)
         {
-            player.Update(grid, in rightInput);
+            player.Update(grid, in leftInput);
         }
 
         var neutral = new PlayerInput(false, false, false, false, false);
@@ -561,8 +561,8 @@ public class PlayerTests
     public void LethalFall_DecrementsLifeByOne()
     {
         var grid = CreateTestRoom();
-        // Colocar al jugador en plataforma nivel 2 (fila 4) sobre el vacío en x=290 (col 18)
-        var player = new Player(290f, 4 * GameConstants.TILE_SIZE);
+        // Colocar al jugador en plataforma nivel 2 (fila 4) sobre el vacío en x=18 (columna 1)
+        var player = new Player(1 * GameConstants.TILE_SIZE + 2f, 4 * GameConstants.TILE_SIZE);
         Assert.Equal(3, player.Lives);
 
         // Dejar caer hasta el suelo inferior (nivel 2 a nivel 0 = caída fatal de 2 niveles)
@@ -579,11 +579,11 @@ public class PlayerTests
     public void ThreeLethalFalls_DepletesLivesToZero()
     {
         var grid = CreateTestRoom();
-        var player = new Player(290f, 4 * GameConstants.TILE_SIZE);
+        var player = new Player(1 * GameConstants.TILE_SIZE + 2f, 4 * GameConstants.TILE_SIZE);
 
         for (int fall = 0; fall < 3; fall++)
         {
-            player.SetPosition(290f, 4 * GameConstants.TILE_SIZE);
+            player.SetPosition(1 * GameConstants.TILE_SIZE + 2f, 4 * GameConstants.TILE_SIZE);
             for (int i = 0; i < 90; i++)
             {
                 player.Update(grid, new PlayerInput(false, false, false, false, false));
@@ -741,38 +741,38 @@ public class PlayerTests
     }
 
     [Fact]
-    public void Jump_AcrossPlatform2_Col3Gap_ToExitDoor_LandsSafely()
+    public void Jump_AcrossPlatform2_Col16Gap_ToExitDoor_LandsSafely()
     {
         var grid = CreateTestRoom();
-        // Iniciar en el extremo izquierdo de Plataforma 2 (columna 4, fila 4, Y = 64)
-        var player = new Player(4 * GameConstants.TILE_SIZE + 2f, 4 * GameConstants.TILE_SIZE);
+        // Iniciar en el extremo derecho de la sección principal de Plataforma 2 (columna 15, fila 4, Y = 64)
+        var player = new Player(15 * GameConstants.TILE_SIZE + 2f, 4 * GameConstants.TILE_SIZE);
         var neutral = new PlayerInput(false, false, false, false, false);
 
-        // Saltar hacia la izquierda sobre el hueco de columna 3
-        player.Update(grid, new PlayerInput(left: true, right: false, up: false, down: false, jump: true));
+        // Saltar hacia la derecha sobre el hueco de columna 16
+        player.Update(grid, new PlayerInput(left: false, right: true, up: false, down: false, jump: true));
         for (int i = 0; i < Player.JUMP_DURATION_FRAMES; i++)
         {
             player.Update(grid, in neutral);
         }
 
-        // Debe aterrizar sobre el descansillo de la puerta (columna 1 o 2, fila 4, Y = 64)
+        // Debe aterrizar sobre el descansillo de la puerta (columna 17 o 18, fila 4, Y = 64)
         Assert.Equal(64f, player.Position.Y);
         Assert.False(player.IsEliminated);
         Assert.NotEqual(PlayerState.Falling, player.State);
-        Assert.True(player.Position.X < 3 * GameConstants.TILE_SIZE,
+        Assert.True(player.Position.X >= 17 * GameConstants.TILE_SIZE,
             "El jugador debe haber aterrizado sobre la repisa de la puerta de salida");
     }
 
     [Fact]
-    public void Jump_AcrossPlatform2_FromExitDoor_BackToCol4_LandsSafely()
+    public void Jump_AcrossPlatform2_FromExitDoor_BackToCol15_LandsSafely()
     {
         var grid = CreateTestRoom();
-        // Iniciar en el descansillo de la puerta de salida (columna 2, fila 4, Y = 64)
-        var player = new Player(2 * GameConstants.TILE_SIZE + 2f, 4 * GameConstants.TILE_SIZE);
+        // Iniciar en el descansillo de la puerta de salida (columna 17, fila 4, Y = 64)
+        var player = new Player(17 * GameConstants.TILE_SIZE + 2f, 4 * GameConstants.TILE_SIZE);
         var neutral = new PlayerInput(false, false, false, false, false);
 
-        // Saltar hacia la derecha sobre el hueco de columna 3
-        player.Update(grid, new PlayerInput(left: false, right: true, up: false, down: false, jump: true));
+        // Saltar hacia la izquierda sobre el hueco de columna 16
+        player.Update(grid, new PlayerInput(left: true, right: false, up: false, down: false, jump: true));
         for (int i = 0; i < Player.JUMP_DURATION_FRAMES; i++)
         {
             player.Update(grid, in neutral);
@@ -782,7 +782,7 @@ public class PlayerTests
         Assert.Equal(64f, player.Position.Y);
         Assert.False(player.IsEliminated);
         Assert.NotEqual(PlayerState.Falling, player.State);
-        Assert.True(player.Position.X >= 4 * GameConstants.TILE_SIZE,
+        Assert.True(player.Position.X < 16 * GameConstants.TILE_SIZE,
             "El jugador debe haber aterrizado de regreso en la plataforma nivel 2");
     }
 

@@ -161,7 +161,7 @@ public class PuzzleManagerTests
         var (grid, puzzle) = CreateTestSetup();
 
         Assert.Equal(new GridCoord(16, 6), puzzle.KeyCoord);
-        Assert.Equal(new GridCoord(1, 4), puzzle.ExitDoorCoord);
+        Assert.Equal(new GridCoord(18, 4), puzzle.ExitDoorCoord);
         Assert.False(puzzle.HasKey);
         Assert.False(puzzle.IsChamberCompleted);
     }
@@ -200,7 +200,7 @@ public class PuzzleManagerTests
     public void ExitDoor_WithoutKey_RemainsLocked()
     {
         var (grid, puzzle) = CreateTestSetup();
-        // Colocar al arqueólogo en la puerta de salida (1, 4) sin la llave
+        // Colocar al arqueólogo en la puerta de salida (18, 4) sin la llave
         var player = new Player(puzzle.ExitDoorCoord);
 
         puzzle.Update(grid, player);
@@ -218,7 +218,7 @@ public class PuzzleManagerTests
         puzzle.Update(grid, player);
         Assert.True(puzzle.HasKey);
 
-        // 2. Llegar a la puerta de salida (1, 4) con la llave
+        // 2. Llegar a la puerta de salida (18, 4) con la llave
         player.SetPosition(puzzle.ExitDoorCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.ExitDoorCoord.Y * GameConstants.TILE_SIZE);
         puzzle.Update(grid, player);
 
@@ -1010,8 +1010,8 @@ public class PuzzleManagerTests
         var mummy = new Mummy(
             spawnX: 15 * GameConstants.TILE_SIZE,
             spawnY: 4 * GameConstants.TILE_SIZE,
-            minX: 4 * GameConstants.TILE_SIZE,
-            maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            minX: 2 * GameConstants.TILE_SIZE,
+            maxX: 16 * GameConstants.TILE_SIZE - Mummy.WIDTH,
             initialFacing: Direction.Left);
 
         // --- CAÍDA 1 ---
@@ -1091,8 +1091,8 @@ public class PuzzleManagerTests
         var mummy = new Mummy(
             spawnX: 15 * GameConstants.TILE_SIZE,
             spawnY: 4 * GameConstants.TILE_SIZE,
-            minX: 4 * GameConstants.TILE_SIZE,
-            maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            minX: 2 * GameConstants.TILE_SIZE,
+            maxX: 16 * GameConstants.TILE_SIZE - Mummy.WIDTH,
             initialFacing: Direction.Left);
 
         // Ejecutar 3 caídas de la momia
@@ -1128,7 +1128,7 @@ public class PuzzleManagerTests
     }
 
     [Fact]
-    public void Chamber1_FallingThroughTrap2_SteeringOntoLevel1_DoesNotEliminatePlayer_WhenReachingLevel0()
+    public void Chamber1_FallingThroughTrap2_SteeringOntoLevel1_EliminatesPlayerAndLosesLife()
     {
         var (grid, puzzle) = CreateTestSetup();
 
@@ -1154,31 +1154,11 @@ public class PuzzleManagerTests
             frame++;
         }
 
-        // El jugador ha aterrizado con éxito en Plataforma 1 (fila 9, Y = 128)
+        // Al completar la caída por la trampa y aterrizar en Plataforma 1 (fila 9, Y = 128), el jugador pierde una vida
         Assert.Equal(128f, player.Position.Y);
-        Assert.False(player.IsEliminated);
-        Assert.Equal(3, player.Lives);
-        Assert.False(puzzle.IsPlayerTrappedInTrap2, "La bandera de trampa debe reiniciarse porque el jugador aterrizó y pisó el Nivel 1");
-
-        // Ahora el jugador continúa su camino y desciende al Nivel 0 (caminando al hueco col 11 para caer a Nivel 0)
-        var walkLeft = new RetroGamePiramid.Input.PlayerInput(left: true, right: false, up: false, down: false, jump: false);
-        for (int i = 0; i < 20; i++)
-        {
-            player.Update(grid, in walkLeft);
-            puzzle.Update(grid, player);
-        }
-
-        var neutral = new RetroGamePiramid.Input.PlayerInput(false, false, false, false, false);
-        for (int i = 0; i < 60; i++)
-        {
-            player.Update(grid, in neutral);
-            puzzle.Update(grid, player);
-        }
-
-        // El jugador llega al Nivel 0 (Y = 208): NO debe perder vida ni ser eliminado
-        Assert.Equal(208f, player.Position.Y);
-        Assert.False(player.IsEliminated, "El jugador no debe ser eliminado al llegar a Nivel 0 tras haber pisado Nivel 1");
-        Assert.Equal(3, player.Lives);
-        Assert.False(puzzle.HasTrap2Eliminated);
+        Assert.True(player.IsEliminated, "El jugador que cae por la trampa del Nivel 2 debe ser eliminado y perder una vida");
+        Assert.Equal(2, player.Lives); // Pierde 1 vida
+        Assert.True(puzzle.HasTrap2Eliminated);
+        Assert.Equal(PuzzleManager.MSG_TRAP2, puzzle.NotificationMessage);
     }
 }

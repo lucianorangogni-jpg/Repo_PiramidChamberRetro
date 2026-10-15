@@ -9,10 +9,10 @@ namespace RetroGamePiramid.Tests.Entities;
 
 public class MummyTests
 {
-    private const float SPAWN_X = 13 * GameConstants.TILE_SIZE; // 208f
+    private const float SPAWN_X = 15 * GameConstants.TILE_SIZE; // 240f
     private const float SPAWN_Y = 4 * GameConstants.TILE_SIZE;  // 64f
-    private const float MIN_X = 4 * GameConstants.TILE_SIZE;    // 64f (límite con el hueco vacío de columna 3)
-    private const float MAX_X = 18 * GameConstants.TILE_SIZE - Mummy.WIDTH; // 274f (límite con el hueco vacío de columna 18)
+    private const float MIN_X = 2 * GameConstants.TILE_SIZE;    // 32f (límite con el hueco vacío de columna 1)
+    private const float MAX_X = 16 * GameConstants.TILE_SIZE - Mummy.WIDTH; // 242f (límite con el hueco vacío de columna 16)
 
     private Mummy CreateTestMummy(Direction initialFacing = Direction.Right)
     {
@@ -229,43 +229,43 @@ public class MummyTests
     }
 
     [Fact]
-    public void PatrolReachesEdgeOfGapAtColumn3_AndReversesWithoutFalling()
+    public void PatrolReachesEdgeOfGapAtColumn1_AndReversesWithoutFalling()
     {
         var mummy = CreateTestMummy(Direction.Left);
         var player = new Player(new GridCoord(2, 13));
 
-        // Acercar la momia al borde izquierdo de la plataforma continua (columna 4, X=64)
-        mummy.SetPosition(MIN_X + 2f, SPAWN_Y); // 66f
-        mummy.Update(player); // 66 - 1.5 = 64.5f
-        Assert.Equal(64.5f, mummy.Position.X);
+        // Acercar la momia al borde izquierdo de la plataforma continua (columna 2, X=32)
+        mummy.SetPosition(MIN_X + 2f, SPAWN_Y); // 34f
+        mummy.Update(player); // 34 - 1.5 = 32.5f
+        Assert.Equal(32.5f, mummy.Position.X);
         Assert.Equal(Direction.Left, mummy.Facing);
 
-        mummy.Update(player); // Al intentar cruzar 64f, rebota exactamente a MIN_X (64f)
+        mummy.Update(player); // Al intentar cruzar 32f, rebota exactamente a MIN_X (32f)
         Assert.Equal(MIN_X, mummy.Position.X);
         Assert.Equal(Direction.Right, mummy.Facing);
 
-        // La momia nunca invade la columna 3 (X < 64f), evitando caer en el hueco sin piso
-        Assert.True(mummy.Position.X >= 4 * GameConstants.TILE_SIZE);
+        // La momia nunca invade la columna 1 (X < 32f), evitando caer en el hueco sin piso
+        Assert.True(mummy.Position.X >= 2 * GameConstants.TILE_SIZE);
     }
 
     [Fact]
-    public void PatrolReachesEdgeOfGapAtColumn18_AndReversesWithoutFalling()
+    public void PatrolReachesEdgeOfGapAtColumn16_AndReversesWithoutFalling()
     {
         var mummy = CreateTestMummy(Direction.Right);
         var player = new Player(new GridCoord(2, 13));
 
-        // Acercar la momia al borde derecho de la plataforma continua (columna 17, X=274)
-        mummy.SetPosition(MAX_X - 2f, SPAWN_Y); // 272f
-        mummy.Update(player); // 272 + 1.5 = 273.5f
-        Assert.Equal(273.5f, mummy.Position.X);
+        // Acercar la momia al borde derecho de la plataforma continua (columna 15, X=242)
+        mummy.SetPosition(MAX_X - 2f, SPAWN_Y); // 240f
+        mummy.Update(player); // 240 + 1.5 = 241.5f
+        Assert.Equal(241.5f, mummy.Position.X);
         Assert.Equal(Direction.Right, mummy.Facing);
 
-        mummy.Update(player); // Al intentar cruzar MAX_X, rebota exactamente a MAX_X (274f)
+        mummy.Update(player); // Al intentar cruzar MAX_X, rebota exactamente a MAX_X (242f)
         Assert.Equal(MAX_X, mummy.Position.X);
         Assert.Equal(Direction.Left, mummy.Facing);
 
-        // Su lado derecho (X + 14 = 288f) no sobrepasa la columna 17, evitando caer en la columna 18 (X >= 288f)
-        Assert.True(mummy.Position.X + Mummy.WIDTH <= 18 * GameConstants.TILE_SIZE);
+        // Su lado derecho (X + 14 = 256f) no sobrepasa la columna 15, evitando caer en la columna 16 (X >= 256f)
+        Assert.True(mummy.Position.X + Mummy.WIDTH <= 16 * GameConstants.TILE_SIZE);
     }
 
     [Fact]

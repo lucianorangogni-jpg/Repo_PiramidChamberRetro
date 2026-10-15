@@ -188,17 +188,19 @@ public sealed class RoomGrid
         }
 
         // 4. Plataforma superior Nivel 2 (fila 5)
-        // Descansillo de la puerta de salida a la izquierda: columnas 1 y 2
-        SetTile(1, 5, TileType.SolidWall);
-        SetTile(2, 5, TileType.SolidWall);
+        // Columna 1 es espacio vacío (foso directo hacia Nivel 0)
 
-        // Columna 3 es espacio vacío para salto hacia la puerta (16 px)
-
-        // Plataforma principal Nivel 2: columnas 4 a 17
-        for (int x = 4; x <= 17; x++)
+        // Plataforma principal Nivel 2: columnas 2 a 15
+        for (int x = 2; x <= 15; x++)
         {
             SetTile(x, 5, TileType.SolidWall);
         }
+
+        // Columna 16 es espacio vacío para salto hacia el descansillo de la puerta (16 px)
+
+        // Descansillo de la puerta de salida a la derecha: columnas 17 y 18
+        SetTile(17, 5, TileType.SolidWall);
+        SetTile(18, 5, TileType.SolidWall);
 
         // 5. Escalera 2: conecta la plataforma intermedia (fila 9) con la plataforma superior (fila 5)
         // Columna 10: desde la fila 5 hasta la fila 9
@@ -212,15 +214,15 @@ public sealed class RoomGrid
         SetTile(8, 13, TileType.PressurePlate);
 
         // 7. Puerta de salida en la plataforma superior Nivel 2
-        // Situada en (1, 4), reposando sobre el descansillo de la celda (1, 5)
-        SetTile(1, 4, TileType.ExitDoor);
+        // Situada en (18, 4), reposando sobre el descansillo de la celda (18, 5)
+        SetTile(18, 4, TileType.ExitDoor);
 
         // 8. Registro de plataformas de la recámara (distinción por pantalla)
         RoomName = "Recamara 1";
         _platforms.Clear();
         _platforms.Add(new PlatformInfo(0, GameConstants.GRID_ROWS - 1, 1, GameConstants.GRID_COLUMNS - 2, "Plataforma Nivel 0"));
         _platforms.Add(new PlatformInfo(1, 9, 2, 17, "Plataforma Nivel 1"));
-        _platforms.Add(new PlatformInfo(2, 5, 1, 17, "Plataforma Nivel 2"));
+        _platforms.Add(new PlatformInfo(2, 5, 2, 18, "Plataforma Nivel 2"));
     }
 
     private void LoadChamber2()

@@ -235,4 +235,35 @@ public class GameShortcutsTests
         Assert.True(opt1Y + opt1H < opt2Y, "La opción 1 no debe superponerse con la opción 2");
         Assert.True(opt2Y + opt2H <= elimH, "La opción 2 debe caber dentro del modal");
     }
+
+    [Fact]
+    public void AutomaticRespawn_WhenLivesRemain_RestoresPlayerStateAndDecrementsLife()
+    {
+        var grid = new RoomGrid();
+        grid.LoadDefaultRoom();
+
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid);
+
+        var player = new Player(new GridCoord(2, 13));
+        Assert.Equal(3, player.Lives);
+        Assert.False(player.IsEliminated);
+
+        // Simular que el jugador cae en una trampa y es eliminado
+        player.Eliminate();
+        Assert.True(player.IsEliminated);
+        Assert.Equal(2, player.Lives);
+
+        // Simular el respawn automático tras cumplirse el temporizador (equivalente a RestartCurrentRoom conservando vidas)
+        grid.LoadDefaultRoom();
+        puzzle.Initialize(grid);
+        player.SetPosition(2 * GameConstants.TILE_SIZE + (GameConstants.TILE_SIZE - Player.WIDTH) / 2f, 13 * GameConstants.TILE_SIZE);
+
+        // El jugador reaparece activo en la posición inicial sin estar bloqueado en Eliminado
+        Assert.False(player.IsEliminated);
+        Assert.Equal(PlayerState.Idle, player.State);
+        Assert.Equal(2, player.Lives);
+        Assert.Equal(2 * GameConstants.TILE_SIZE + (GameConstants.TILE_SIZE - Player.WIDTH) / 2f, player.Position.X);
+        Assert.Equal(13 * GameConstants.TILE_SIZE, player.Position.Y);
+    }
 }

@@ -88,6 +88,7 @@ public sealed class Player
     public Player(float startX, float startY)
     {
         _position = new Vector2(startX, startY);
+        _fallStartY = startY;
     }
 
     public Player(GridCoord gridCoord)
@@ -172,6 +173,8 @@ public sealed class Player
                 _state = PlayerState.Climbing;
                 float moveY = input.Up ? -CLIMB_SPEED : CLIMB_SPEED;
                 _position.Y += moveY;
+                _fallStartY = _position.Y;
+                _fallStartPlatformLevel = grid.GetClosestPlatformLevel(_position.Y);
                 return;
             }
         }
@@ -181,6 +184,8 @@ public sealed class Player
         {
             SnapToLadderCenter();
             _state = PlayerState.Climbing;
+            _fallStartY = _position.Y;
+            _fallStartPlatformLevel = grid.GetClosestPlatformLevel(_position.Y);
             return;
         }
 
@@ -193,6 +198,10 @@ public sealed class Player
             _fallStartPlatformLevel = grid.GetPlatformLevel(_position.Y);
             return;
         }
+
+        // Mientras pisa suelo firme en un nivel, sincronizar el origen de caída con el nivel actual
+        _fallStartY = _position.Y;
+        _fallStartPlatformLevel = grid.GetPlatformLevel(_position.Y);
 
         // 3. Disparo del salto con barra espaciadora
         if (input.Jump)
@@ -285,6 +294,8 @@ public sealed class Player
             {
                 // Llegó al nivel superior de la plataforma: desmontar y posar limpiamente
                 _position.Y = platformTopY;
+                _fallStartY = _position.Y;
+                _fallStartPlatformLevel = grid.GetPlatformLevel(_position.Y);
                 _state = PlayerState.Idle;
                 return;
             }
@@ -297,6 +308,8 @@ public sealed class Player
             }
 
             _position.Y = newY;
+            _fallStartY = _position.Y;
+            _fallStartPlatformLevel = grid.GetClosestPlatformLevel(_position.Y);
         }
         else if (moveY > 0f)
         {
@@ -309,6 +322,8 @@ public sealed class Player
             if (grid.IsSolid(centerCol, bottomTileY))
             {
                 _position.Y = bottomTileY * GameConstants.TILE_SIZE - HEIGHT;
+                _fallStartY = _position.Y;
+                _fallStartPlatformLevel = grid.GetPlatformLevel(_position.Y);
                 _state = PlayerState.Idle;
                 return;
             }
@@ -317,11 +332,15 @@ public sealed class Player
             {
                 newY = bottomTileY * GameConstants.TILE_SIZE - HEIGHT;
                 _position.Y = newY;
+                _fallStartY = _position.Y;
+                _fallStartPlatformLevel = grid.GetPlatformLevel(_position.Y);
                 _state = PlayerState.Idle;
                 return;
             }
 
             _position.Y = newY;
+            _fallStartY = _position.Y;
+            _fallStartPlatformLevel = grid.GetClosestPlatformLevel(_position.Y);
         }
 
         // Permite desmontarse a los lados si camina en dirección horizontal hacia suelo firme
@@ -338,6 +357,8 @@ public sealed class Player
                 {
                     if (IsGrounded(grid, _position.X, _position.Y))
                     {
+                        _fallStartY = _position.Y;
+                        _fallStartPlatformLevel = grid.GetPlatformLevel(_position.Y);
                         _state = PlayerState.Walking;
                     }
                     else
@@ -393,6 +414,8 @@ public sealed class Player
 
             if (IsGrounded(grid, _position.X, _position.Y))
             {
+                _fallStartY = _position.Y;
+                _fallStartPlatformLevel = grid.GetPlatformLevel(_position.Y);
                 _state = PlayerState.Idle;
             }
             else
@@ -451,6 +474,8 @@ public sealed class Player
             SnapToLadderCenter();
             _state = PlayerState.Climbing;
             _verticalVelocity = 0f;
+            _fallStartY = _position.Y;
+            _fallStartPlatformLevel = grid.GetClosestPlatformLevel(_position.Y);
             return;
         }
 
@@ -461,18 +486,28 @@ public sealed class Player
         // 3. Comprobación de impacto con el suelo firme
         if (CollidesWithSolid(grid, _position.X, newY))
         {
-            if (IsGrounded(grid, _position.X, newY))
+            int landTileY = (int)((newY + HEIGHT - 0.01f) / GameConstants.TILE_SIZE);
+            float landingY = landTileY * GameConstants.TILE_SIZE - HEIGHT;
+
+            if (IsGrounded(grid, _position.X, landingY) || IsGrounded(grid, _position.X, newY))
             {
-                int landTileY = (int)MathF.Round((newY + HEIGHT) / GameConstants.TILE_SIZE);
-                float landingY = landTileY * GameConstants.TILE_SIZE - HEIGHT;
                 LandOnSurface(grid, landingY);
                 return;
             }
             else
             {
+                // Si tocó una plataforma intermedia (ej. Nivel 1) en el borde antes de resbalar,
+                // la caída deja de ser directa desde el nivel superior y se actualiza al nivel tocado
+                int touchedLevel = grid.GetPlatformLevel(landingY);
+                if (touchedLevel != -1)
+                {
+                    _fallStartY = landingY;
+                    _fallStartPlatformLevel = touchedLevel;
+                }
+
                 // No está sustentado: rozamiento de esquina sólida por menos de 2 píxeles
                 // Ajustar horizontalmente para librar la esquina y seguir cayendo
-                int rowBelow = (int)((newY + HEIGHT - 0.01f) / GameConstants.TILE_SIZE);
+                int rowBelow = landTileY;
                 int rightCol = (int)((_position.X + WIDTH - 0.01f) / GameConstants.TILE_SIZE);
                 int leftCol = (int)(_position.X / GameConstants.TILE_SIZE);
 
@@ -491,8 +526,6 @@ public sealed class Player
                 }
                 else
                 {
-                    int landTileY = (int)MathF.Round((newY + HEIGHT) / GameConstants.TILE_SIZE);
-                    float landingY = landTileY * GameConstants.TILE_SIZE - HEIGHT;
                     LandOnSurface(grid, landingY);
                     return;
                 }

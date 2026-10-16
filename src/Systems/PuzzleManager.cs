@@ -50,6 +50,7 @@ public sealed class PuzzleManager
     public bool IsTrapOpen => Trap.IsOpen;
     public bool IsPlayerTrappedInTrap { get; private set; }
     public bool HasTrapEliminated { get; private set; }
+    private bool _suppressTrap1FromUpperFall;
     public bool IsTrap2Open => Trap2.IsOpen;
     public bool HasTrap2 { get; private set; } = true;
     public bool IsTrap2Triggered => IsPlayerTrappedInTrap2;
@@ -203,6 +204,7 @@ public sealed class PuzzleManager
         Trap2OpenTimer = 0;
         IsPlayerTrappedInTrap = false;
         HasTrapEliminated = false;
+        _suppressTrap1FromUpperFall = false;
         IsPlayerTrappedInTrap2 = false;
         HasTrap2Eliminated = false;
         Treasure.Reset();
@@ -442,52 +444,77 @@ public sealed class PuzzleManager
         // 7. Detección de activación de la trampa en el piso bajo la llave
         float trapLeft = TrapCoord.X * GameConstants.TILE_SIZE;
         float trapRight = trapLeft + GameConstants.TILE_SIZE;
-
-        // El jugador está horizontalmente debajo de la llave (columna 16)
-        bool isUnderKey = playerRight > trapLeft + 2f && playerLeft < trapRight - 2f;
-        // El jugador está caminando o apoyado sobre el piso de la plataforma 1
-        // y no está en el aire sobrevolando en salto
         float platformPlayerY = (TrapCoord.Y - 1) * GameConstants.TILE_SIZE;
+
+        // Si el jugador viene cayendo desde el Nivel 2 por el hueco de columna 16 hacia el Nivel 1,
+        // su aterrizaje sobre Nivel 1 no debe activar la trampa mortal de Nivel 1.
+        bool isHorizNearTrap1 = playerRight > trapLeft - 2f && playerLeft < trapRight + 2f;
+        if (player.State == PlayerState.Falling && player.Position.Y < platformPlayerY - 4f && isHorizNearTrap1)
+        {
+            _suppressTrap1FromUpperFall = true;
+        }
+        else if (_suppressTrap1FromUpperFall)
+        {
+            if (!isHorizNearTrap1 || player.State == PlayerState.Jumping || (player.State != PlayerState.Falling && MathF.Abs(player.Position.Y - platformPlayerY) > 4f))
+            {
+                _suppressTrap1FromUpperFall = false;
+            }
+        }
+
+        // El jugador está horizontalmente situado sobre el vano de la trampa (ambos puntos de apoyo en columna 16)
+        bool isUnderKey = playerLeft >= trapLeft - 2f && playerRight <= trapRight + 2f;
+        // El jugador está caminando o apoyado sobre el piso de la plataforma 1 (no en pleno salto ni cayendo desde arriba)
         bool isGroundedOnPlatform1 = MathF.Abs(player.Position.Y - platformPlayerY) <= 4f &&
-                                     player.State != PlayerState.Jumping;
+                                     (player.State == PlayerState.Idle || player.State == PlayerState.Walking);
 
-        if (!Trap.IsOpen)
+        if (!_suppressTrap1FromUpperFall)
         {
-            if (isUnderKey && isGroundedOnPlatform1)
+            if (!Trap.IsOpen)
             {
-                Trap.Open();
-                grid.SetTile(TrapCoord.X, TrapCoord.Y, TileType.Empty);
-
-                // Abre el muro secreto en el piso inferior para permitir salir al jugador
-                if (!IsWallOpen)
+                if (isUnderKey && isGroundedOnPlatform1)
                 {
-                    IsWallOpen = true;
-                    grid.SetTile(WallCoord.X, WallCoord.Y, TileType.Empty);
+                    Trap.Open();
+                    grid.SetTile(TrapCoord.X, TrapCoord.Y, TileType.Empty);
+
+                    // Abre el muro secreto en el piso inferior para permitir salir al jugador
+                    if (!IsWallOpen)
+                    {
+                        IsWallOpen = true;
+                        grid.SetTile(WallCoord.X, WallCoord.Y, TileType.Empty);
+                    }
+
+                    player.ForceFall(grid);
+                    IsPlayerTrappedInTrap = true;
+                    HasTrapEliminated = false;
+
+                    NotificationTimer = 120;
+                    NotificationMessage = MSG_TRAP;
                 }
-
-                player.ForceFall(grid);
-                IsPlayerTrappedInTrap = true;
-
-                NotificationTimer = 120;
-                NotificationMessage = MSG_TRAP;
             }
-        }
-        else
-        {
-            // Si la trampa ya estaba abierta y el jugador entra en ella caminando
-            if (isUnderKey && isGroundedOnPlatform1 && !IsPlayerTrappedInTrap)
+            else
             {
-                player.ForceFall(grid);
-                IsPlayerTrappedInTrap = true;
-                NotificationTimer = 120;
-                NotificationMessage = MSG_TRAP;
+                // Si la trampa ya estaba abierta y el jugador entra en ella caminando
+                if (isUnderKey && isGroundedOnPlatform1 && !IsPlayerTrappedInTrap)
+                {
+                    player.ForceFall(grid);
+                    IsPlayerTrappedInTrap = true;
+                    HasTrapEliminated = false;
+                    NotificationTimer = 120;
+                    NotificationMessage = MSG_TRAP;
+                }
             }
         }
 
-        // Si el jugador cayó por la trampa, pierde una vida al completar la caída
+        // Si el jugador cayó por la trampa, pierde una vida al completar la caída;
+        // pero si permanece o camina sobre el Nivel 1, se limpia el estado de atrapado.
         if (IsPlayerTrappedInTrap)
         {
-            if (!HasTrapEliminated && (player.Position.Y >= 13 * GameConstants.TILE_SIZE || (player.State == PlayerState.Idle && player.Position.Y > TrapCoord.Y * GameConstants.TILE_SIZE) || player.IsEliminated))
+            if (!player.IsEliminated && player.State != PlayerState.Falling && player.Position.Y <= platformPlayerY + 4f)
+            {
+                IsPlayerTrappedInTrap = false;
+                HasTrapEliminated = false;
+            }
+            else if (!HasTrapEliminated && (player.Position.Y >= 13 * GameConstants.TILE_SIZE || (player.State == PlayerState.Idle && player.Position.Y > TrapCoord.Y * GameConstants.TILE_SIZE) || player.IsEliminated))
             {
                 HasTrapEliminated = true;
                 if (!player.IsEliminated)
@@ -505,43 +532,31 @@ public sealed class PuzzleManager
             float trap2Left = Trap2Coord.X * GameConstants.TILE_SIZE;
             float trap2Right = trap2Left + GameConstants.TILE_SIZE;
             bool isOverTrap2 = playerRight > trap2Left + 2f && playerLeft < trap2Right - 2f;
+            bool isOverTrap2Hole = playerLeft >= trap2Left - 2f && playerRight <= trap2Right + 2f;
             float platform2PlayerY = (Trap2Coord.Y - 1) * GameConstants.TILE_SIZE;
 
             // El jugador está a la altura de la plataforma de Nivel 2 (caminando en Y=64 o saltando en el aire sobre ella)
             bool isPlayerAtLevel2Height = player.Position.Y <= platform2PlayerY + 4f &&
                                           player.Position.Y >= platform2PlayerY - Player.JUMP_HEIGHT_PIXELS - 4f;
+            bool isGroundedOnPlatform2 = MathF.Abs(player.Position.Y - platform2PlayerY) <= 4f &&
+                                         (player.State == PlayerState.Idle || player.State == PlayerState.Walking);
 
             // Apertura de la trampa al pasar por arriba (caminando o saltando)
-            if (isOverTrap2 && isPlayerAtLevel2Height)
+            if (isOverTrap2 && isPlayerAtLevel2Height && !Trap2.IsOpen)
             {
-                if (!Trap2.IsOpen)
-                {
-                    Trap2.Open();
-                    grid.SetTile(Trap2Coord.X, Trap2Coord.Y, TileType.Empty);
-                    Trap2OpenTimer = 120; // 2 segundos abierta
+                Trap2.Open();
+                grid.SetTile(Trap2Coord.X, Trap2Coord.Y, TileType.Empty);
+                Trap2OpenTimer = 120; // 2 segundos abierta
+            }
 
-                    if (player.State != PlayerState.Jumping)
-                    {
-                        // Si pasa caminando sobre la trampa, cae
-                        player.ForceFall(grid);
-                        IsPlayerTrappedInTrap2 = true;
-                        HasTrap2Eliminated = false;
-                        NotificationTimer = 120;
-                        NotificationMessage = MSG_TRAP2;
-                    }
-                }
-                else
-                {
-                    // Si ya estaba abierta y el jugador entra caminando, cae
-                    if (player.State != PlayerState.Jumping && !IsPlayerTrappedInTrap2)
-                    {
-                        player.ForceFall(grid);
-                        IsPlayerTrappedInTrap2 = true;
-                        HasTrap2Eliminated = false;
-                        NotificationTimer = 120;
-                        NotificationMessage = MSG_TRAP2;
-                    }
-                }
+            // Si la trampa está abierta y el jugador pisa el vano de la trampa en Nivel 2, cae
+            if (Trap2.IsOpen && isOverTrap2Hole && isGroundedOnPlatform2 && !IsPlayerTrappedInTrap2)
+            {
+                player.ForceFall(grid);
+                IsPlayerTrappedInTrap2 = true;
+                HasTrap2Eliminated = false;
+                NotificationTimer = 120;
+                NotificationMessage = MSG_TRAP2;
             }
 
             // Temporizador de cierre automático de la trampilla
@@ -561,24 +576,32 @@ public sealed class PuzzleManager
             // Si el jugador cayó por la trampa:
             if (IsPlayerTrappedInTrap2)
             {
-                // Cierre a las espaldas cuando pasa Y >= 96
-                if (Trap2.IsOpen && player.Position.Y >= (Trap2Coord.Y + 1) * GameConstants.TILE_SIZE)
+                if (!player.IsEliminated && player.State != PlayerState.Falling && player.Position.Y <= platform2PlayerY + 4f)
                 {
-                    Trap2.Close();
-                    grid.SetTile(Trap2Coord.X, Trap2Coord.Y, TileType.SolidWall);
-                    Trap2OpenTimer = 0;
+                    IsPlayerTrappedInTrap2 = false;
+                    HasTrap2Eliminated = false;
                 }
-
-                // Si el jugador cayó por la trampa del Nivel 2, pierde una vida al completar la caída (ya sea aterrizando en Nivel 1 o en Nivel 0)
-                if (!HasTrap2Eliminated && (player.Position.Y >= 13 * GameConstants.TILE_SIZE || (player.State == PlayerState.Idle && player.Position.Y > Trap2Coord.Y * GameConstants.TILE_SIZE) || player.IsEliminated))
+                else
                 {
-                    HasTrap2Eliminated = true;
-                    if (!player.IsEliminated)
+                    // Cierre a las espaldas cuando pasa Y >= 96
+                    if (Trap2.IsOpen && player.Position.Y >= (Trap2Coord.Y + 1) * GameConstants.TILE_SIZE)
                     {
-                        player.Eliminate();
+                        Trap2.Close();
+                        grid.SetTile(Trap2Coord.X, Trap2Coord.Y, TileType.SolidWall);
+                        Trap2OpenTimer = 0;
                     }
-                    NotificationTimer = 120;
-                    NotificationMessage = MSG_TRAP2;
+
+                    // Si el jugador cayó por la trampa del Nivel 2, pierde una vida al completar la caída (ya sea aterrizando en Nivel 1 o en Nivel 0)
+                    if (!HasTrap2Eliminated && (player.Position.Y >= 13 * GameConstants.TILE_SIZE || (player.State == PlayerState.Idle && player.Position.Y > Trap2Coord.Y * GameConstants.TILE_SIZE) || player.IsEliminated))
+                    {
+                        HasTrap2Eliminated = true;
+                        if (!player.IsEliminated)
+                        {
+                            player.Eliminate();
+                        }
+                        NotificationTimer = 120;
+                        NotificationMessage = MSG_TRAP2;
+                    }
                 }
             }
 

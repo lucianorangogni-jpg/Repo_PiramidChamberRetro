@@ -1161,4 +1161,100 @@ public class PuzzleManagerTests
         Assert.True(puzzle.HasTrap2Eliminated);
         Assert.Equal(PuzzleManager.MSG_TRAP2, puzzle.NotificationMessage);
     }
+
+    [Fact]
+    public void Chamber1_FallFromLevel2_ViaColumn16Gap_LandingOnLevel1_ThenDescendingToLevel0_DoesNotLoseLife()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        var player = new Player(15 * GameConstants.TILE_SIZE, 4 * GameConstants.TILE_SIZE);
+        Assert.Equal(Player.INITIAL_LIVES, player.Lives);
+
+        // 1. Caminar a la derecha desde Nivel 2 (col 15) hacia el espacio vacío de col 16 y caer al Nivel 1
+        var rightInput = new RetroGamePiramid.Input.PlayerInput(left: false, right: true, up: false, down: false, jump: false);
+        for (int i = 0; i < 10; i++)
+        {
+            player.Update(grid, in rightInput);
+            puzzle.Update(grid, player);
+        }
+
+        var neutral = new RetroGamePiramid.Input.PlayerInput(false, false, false, false, false);
+        for (int i = 0; i < 50; i++)
+        {
+            player.Update(grid, in neutral);
+            puzzle.Update(grid, player);
+        }
+
+        // Debe haber aterrizado en Nivel 1 (Y = 128) sin ser eliminado ni quedar marcado como atrapado
+        Assert.Equal(128f, player.Position.Y);
+        Assert.False(player.IsEliminated);
+        Assert.False(puzzle.IsPlayerTrappedInTrap);
+        Assert.Equal(Player.INITIAL_LIVES, player.Lives);
+
+        // 2. Moverse por el Nivel 1 hacia la derecha y bajar al Nivel 0 por el hueco de columna 18
+        for (int i = 0; i < 25; i++)
+        {
+            player.Update(grid, in rightInput);
+            puzzle.Update(grid, player);
+        }
+
+        for (int i = 0; i < 60; i++)
+        {
+            player.Update(grid, in neutral);
+            puzzle.Update(grid, player);
+        }
+
+        // Aterriza en Nivel 0 (Y = 208) conservando todas sus vidas
+        Assert.Equal(208f, player.Position.Y);
+        Assert.False(player.IsEliminated, "Si el jugador pisa el Nivel 1 y luego baja al Nivel 0, no debe perder una vida");
+        Assert.Equal(Player.INITIAL_LIVES, player.Lives);
+        Assert.Equal(PlayerState.Idle, player.State);
+    }
+
+    [Fact]
+    public void Chamber1_FallFromLevel2_StraightDownColumn16_WalkOnLevel1_ThenClimbOrDropToLevel0_DoesNotLoseLife()
+    {
+        var (grid, puzzle) = CreateTestSetup();
+        var player = new Player(15 * GameConstants.TILE_SIZE + 12f, 4 * GameConstants.TILE_SIZE);
+        Assert.Equal(Player.INITIAL_LIVES, player.Lives);
+
+        // 1. Dar 2 pasos a la derecha para caer verticalmente por la columna 16 (X = 256) hacia Nivel 1
+        var rightInput = new RetroGamePiramid.Input.PlayerInput(left: false, right: true, up: false, down: false, jump: false);
+        var leftInput = new RetroGamePiramid.Input.PlayerInput(left: true, right: false, up: false, down: false, jump: false);
+        var neutral = new RetroGamePiramid.Input.PlayerInput(false, false, false, false, false);
+
+        while (player.State != PlayerState.Falling)
+        {
+            player.Update(grid, in rightInput);
+            puzzle.Update(grid, player);
+        }
+
+        for (int i = 0; i < 50; i++)
+        {
+            player.Update(grid, in neutral);
+            puzzle.Update(grid, player);
+        }
+
+        // Aterriza sobre Nivel 1 (Y = 128) en columna 16 sin que se active letalmente la trampa de Nivel 1
+        Assert.Equal(128f, player.Position.Y);
+        Assert.False(player.IsEliminated);
+        Assert.Equal(Player.INITIAL_LIVES, player.Lives);
+
+        // 2. Caminar a la izquierda por Nivel 1 (hacia col 14) y bajar al Nivel 0 por el hueco de col 13
+        for (int i = 0; i < 40; i++)
+        {
+            player.Update(grid, in leftInput);
+            puzzle.Update(grid, player);
+        }
+
+        for (int i = 0; i < 60; i++)
+        {
+            player.Update(grid, in neutral);
+            puzzle.Update(grid, player);
+        }
+
+        // Toca el Nivel 0 (Y = 208) sin perder ninguna vida
+        Assert.Equal(208f, player.Position.Y);
+        Assert.False(player.IsEliminated, "Bajar un nivel a la vez (Nivel 2 -> Nivel 1 -> Nivel 0) jamás debe costar una vida");
+        Assert.Equal(Player.INITIAL_LIVES, player.Lives);
+    }
 }

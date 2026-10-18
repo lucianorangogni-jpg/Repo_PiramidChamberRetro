@@ -374,8 +374,14 @@ public class Game1 : Game
                     _mummyPlatform1.WakeUp();
                 }
 
-                // Puzle 5: Detección de salto del jugador sobre la momia despierta de plataforma 1
-                if (_mummyPlatform1.IsActive && _mummyPlatform1.IsAwake && !_mummyPlatform1.IsChasing && !_mummyPlatform1.HasReachedLevel0)
+                // Puzle 2 / 5: Detección de salto del jugador sobre la momia de plataforma 1 (tanto en Nivel 1 como caída en Nivel 0)
+                bool canJumpOverMummy1 = _mummyPlatform1.IsActive &&
+                                         !_mummyPlatform1.IsChasing &&
+                                         !_mummyPlatform1.IsFalling &&
+                                         ((_mummyPlatform1.IsAwake && !_mummyPlatform1.HasReachedLevel0) ||
+                                          (_mummyPlatform1.HasReachedLevel0 && !_mummyPlatform1.IsPuzzleCompleted));
+
+                if (canJumpOverMummy1)
                 {
                     if (_player.State == PlayerState.Jumping)
                     {
@@ -399,6 +405,10 @@ public class Game1 : Game
                             _wasJumpingOverMummy = false;
                             if (!_player.IsEliminated)
                             {
+                                if (!_mummyPlatform1.HasReachedLevel0)
+                                {
+                                    _puzzleManager.RegisterLevel1MummyJump();
+                                }
                                 bool chased = _mummyPlatform1.RegisterJumpOver();
                                 if (chased)
                                 {
@@ -416,8 +426,8 @@ public class Game1 : Game
                 _mummy.Update(_player, _roomGrid);
                 _mummyPlatform1.Update(_player, _roomGrid);
 
-                // Si la momia de plataforma 1 cayó al Nivel 0 y se petrificó, se genera el cofre sagrado ancestral (Treasure 3)
-                if (_mummyPlatform1.HasReachedLevel0 && !_puzzleManager.IsTreasure3Spawned)
+                // Cuando se completa el puzle de la momia de plataforma 1 (en Recámara 2 tras caer al Nivel 0 y saltarla 2 veces más), se genera el nuevo tesoro (Treasure 3)
+                if (_mummyPlatform1.IsPuzzleCompleted && !_puzzleManager.IsTreasure3Spawned)
                 {
                     _puzzleManager.SpawnTreasure3(_roomGrid);
                 }
@@ -457,6 +467,9 @@ public class Game1 : Game
                 initialFacing: Direction.Right);
 
             int level1GapCol = _currentChamber is 2 or 6 ? 12 : 11;
+            int reqJumpsLevel1 = _currentChamber == 2 ? 2 : Mummy.REQUIRED_JUMP_OVERS;
+            int reqJumpsLevel0 = _currentChamber == 2 ? 2 : 0;
+
             _mummyPlatform1.Configure(
                 spawnX: 2 * GameConstants.TILE_SIZE,
                 spawnY: 9 * GameConstants.TILE_SIZE,
@@ -464,7 +477,9 @@ public class Game1 : Game
                 maxX: level1GapCol * GameConstants.TILE_SIZE - Mummy.WIDTH,
                 initialFacing: Direction.Right,
                 initiallyAwake: false,
-                initiallyActive: true);
+                initiallyActive: true,
+                requiredJumpOvers: reqJumpsLevel1,
+                requiredLevel0JumpOvers: reqJumpsLevel0);
         }
         else
         {

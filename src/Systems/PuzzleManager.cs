@@ -70,6 +70,10 @@ public sealed class PuzzleManager
     public int PyramidLevel => RoomGrid.GetPyramidLevel(CurrentChamber);
     public int DoorCycleCount { get; private set; }
     public bool HasSecretTreasureReloaded { get; private set; }
+    public int Chamber2Puzzle1Stage { get; private set; }
+    public bool HasJumpedOverLevel1Mummy { get; private set; }
+    public bool HasJumpedOverLevel2Mummy { get; private set; }
+    private bool _wasJumpingOverMummy2;
     public int Score { get; private set; }
     public int NotificationTimer { get; private set; }
     public string NotificationMessage { get; private set; } = "";
@@ -126,6 +130,30 @@ public sealed class PuzzleManager
     {
         NotificationTimer = 120;
         NotificationMessage = MSG_MUMMY_CHASE;
+    }
+
+    public void RegisterLevel1MummyJump()
+    {
+        HasJumpedOverLevel1Mummy = true;
+        if (CurrentChamber == 2 && Chamber2Puzzle1Stage == 2 && Treasure.IsCollected && Key.IsCollected)
+        {
+            Chamber2Puzzle1Stage = 3;
+        }
+    }
+
+    public void RegisterLevel2MummyJump()
+    {
+        if (CurrentChamber == 2)
+        {
+            if (HasSecretTreasureReloaded && IsTreasure3Spawned)
+            {
+                HasJumpedOverLevel2Mummy = true;
+            }
+        }
+        else
+        {
+            HasJumpedOverLevel2Mummy = true;
+        }
     }
 
     /// <summary>
@@ -258,6 +286,10 @@ public sealed class PuzzleManager
         CurrentChamber = normalized;
         DoorCycleCount = 0;
         HasSecretTreasureReloaded = false;
+        Chamber2Puzzle1Stage = 0;
+        HasJumpedOverLevel1Mummy = false;
+        HasJumpedOverLevel2Mummy = false;
+        _wasJumpingOverMummy2 = false;
         IsWallOpen = false;
         WasPlayerOnStone = false;
         NotificationTimer = 0;
@@ -317,14 +349,16 @@ public sealed class PuzzleManager
             // Si está abierto, la celda se vuelve transitable (Empty); si está cerrado, vuelve a ser SolidWall
             grid.SetTile(WallCoord.X, WallCoord.Y, IsWallOpen ? TileType.Empty : TileType.SolidWall);
 
-            // Puzle 1 (presente en todas las recámaras 1 a 10):
-            // Requisitos:
-            // 1. Tener recogidos los 2 tesoros (Nivel 0 y Nivel 2) y la llave (Nivel 1).
-            // 2. Pasar por la losa para abrir y cerrar la puerta del nivel 0 tres (3) veces consecutivas.
-            // 3. Activación única: solo se puede hacer una vez, no se repite nuevamente.
+            // Puzle 1 (Nivel 0):
+            // - Recámara 2: 1) Tesoro de Nivel 0, 2) Llave, 3) Saltar momia de Nivel 1, 4) Abrir y cerrar puerta 2 veces.
+            // - Resto de recámaras (1, 3..10): Tener los 2 tesoros y la llave, y abrir y cerrar puerta 3 veces.
             if (!HasSecretTreasureReloaded)
             {
-                bool arePrerequisitesMet = Treasure.IsCollected && Treasure2.IsCollected && Key.IsCollected;
+                bool arePrerequisitesMet = CurrentChamber == 2
+                    ? (Chamber2Puzzle1Stage == 3 && Treasure.IsCollected && Key.IsCollected && HasJumpedOverLevel1Mummy)
+                    : (Treasure.IsCollected && Treasure2.IsCollected && Key.IsCollected);
+
+                int requiredCycles = CurrentChamber == 2 ? 2 : 3;
 
                 if (!IsWallOpen)
                 {
@@ -332,7 +366,7 @@ public sealed class PuzzleManager
                     if (arePrerequisitesMet)
                     {
                         DoorCycleCount++;
-                        if (DoorCycleCount >= 3)
+                        if (DoorCycleCount >= requiredCycles)
                         {
                             Treasure.Reset();
                             HasSecretTreasureReloaded = true;
@@ -372,6 +406,12 @@ public sealed class PuzzleManager
                 NotificationTimer = 180; // 3 segundos a 60 FPS
                 NotificationMessage = MSG_TREASURE;
                 collectedTreasureThisFrame = true;
+
+                // En Recámara 2, el paso 1 del Puzle 1 es agarrar primero el tesoro del Nivel 0
+                if (CurrentChamber == 2 && Chamber2Puzzle1Stage == 0 && !Key.IsCollected)
+                {
+                    Chamber2Puzzle1Stage = 1;
+                }
             }
         }
 
@@ -481,6 +521,12 @@ public sealed class PuzzleManager
                 Score += 500;
                 NotificationTimer = 180;
                 NotificationMessage = MSG_KEY;
+
+                // En Recámara 2, el paso 2 del Puzle 1 es agarrar la llave después del tesoro del Nivel 0
+                if (CurrentChamber == 2 && Chamber2Puzzle1Stage == 1 && Treasure.IsCollected)
+                {
+                    Chamber2Puzzle1Stage = 2;
+                }
             }
         }
 
@@ -672,13 +718,38 @@ public sealed class PuzzleManager
                 }
             }
 
-            // 8b. Caída de la momia de Nivel 2 en la trampa abierta
+            // 8b. Salto sobre la momia de Nivel 2 y caída en la trampa abierta
             if (mummy != null && mummy.IsActive)
             {
                 float mummyLeft = mummy.Position.X;
                 float mummyRight = mummy.Position.X + Mummy.WIDTH;
                 bool isMummyOverTrap2 = mummyRight > trap2Left + 2f && mummyLeft < trap2Right - 2f;
                 bool isMummyOnLevel2 = MathF.Abs(mummy.Position.Y - platform2PlayerY) <= 4f;
+
+                if (!mummy.IsFalling && isMummyOnLevel2)
+                {
+                    if (player.State == PlayerState.Jumping)
+                    {
+                        bool horizOverlap = playerRight > mummyLeft && playerLeft < mummyRight;
+                        bool isAbove = playerBottom <= (mummy.Position.Y + 4f);
+                        if (horizOverlap && isAbove)
+                        {
+                            _wasJumpingOverMummy2 = true;
+                        }
+                    }
+                    else if (_wasJumpingOverMummy2)
+                    {
+                        _wasJumpingOverMummy2 = false;
+                        if (!player.IsEliminated)
+                        {
+                            RegisterLevel2MummyJump();
+                        }
+                    }
+                }
+                else
+                {
+                    _wasJumpingOverMummy2 = false;
+                }
 
                 if (!mummy.IsFalling && Trap2.IsOpen && isMummyOverTrap2 && isMummyOnLevel2)
                 {
@@ -689,46 +760,59 @@ public sealed class PuzzleManager
                 if (IsMummy2FallingInTrap && mummy.Position.Y >= 13f * GameConstants.TILE_SIZE)
                 {
                     IsMummy2FallingInTrap = false;
-                    Mummy2TrapFallCount++;
 
-                    if (Mummy2TrapFallCount < 3)
+                    bool isValidFall = CurrentChamber != 2 ||
+                                       (HasSecretTreasureReloaded && IsTreasure3Spawned && HasJumpedOverLevel2Mummy);
+                    HasJumpedOverLevel2Mummy = false;
+
+                    if (!isValidFall)
                     {
                         mummy.Reset();
-                        if (Mummy2TrapFallCount == 1)
-                        {
-                            NotificationTimer = 120;
-                            NotificationMessage = MSG_MUMMY_TRAPPED_1;
-                        }
-                        else if (Mummy2TrapFallCount == 2)
-                        {
-                            NotificationTimer = 120;
-                            NotificationMessage = MSG_MUMMY_TRAPPED_2;
-                        }
                     }
                     else
                     {
-                        mummy.IsActive = false;
-                        mummy.SetFalling(false);
-                        NotificationTimer = 180;
-                        NotificationMessage = MSG_MUMMY_DEFEATED;
+                        Mummy2TrapFallCount++;
+                        int requiredFalls = CurrentChamber == 2 ? 2 : 3;
 
-                        // Comprobar si el tesoro de la cámara ya fue recogido
-                        bool chamberTreasureCollected = Treasure.IsCollected && (!IsTreasure3Spawned || Treasure3.IsCollected);
-                        if (chamberTreasureCollected)
+                        if (Mummy2TrapFallCount < requiredFalls)
                         {
-                            IsTreasure4Spawned = true;
-                            IsTreasure4Pending = false;
-                            Treasure4.Reset();
-                            if (!IsWallOpen)
+                            mummy.Reset();
+                            if (Mummy2TrapFallCount == 1)
                             {
-                                IsWallOpen = true;
-                                grid.SetTile(WallCoord.X, WallCoord.Y, TileType.Empty);
+                                NotificationTimer = 120;
+                                NotificationMessage = MSG_MUMMY_TRAPPED_1;
+                            }
+                            else if (Mummy2TrapFallCount == 2)
+                            {
+                                NotificationTimer = 120;
+                                NotificationMessage = MSG_MUMMY_TRAPPED_2;
                             }
                         }
                         else
                         {
-                            IsTreasure4Pending = true;
-                            IsTreasure4Spawned = false;
+                            mummy.IsActive = false;
+                            mummy.SetFalling(false);
+                            NotificationTimer = 180;
+                            NotificationMessage = MSG_MUMMY_DEFEATED;
+
+                            // Comprobar si el tesoro de la cámara ya fue recogido
+                            bool chamberTreasureCollected = Treasure.IsCollected && (!IsTreasure3Spawned || Treasure3.IsCollected);
+                            if (chamberTreasureCollected)
+                            {
+                                IsTreasure4Spawned = true;
+                                IsTreasure4Pending = false;
+                                Treasure4.Reset();
+                                if (!IsWallOpen)
+                                {
+                                    IsWallOpen = true;
+                                    grid.SetTile(WallCoord.X, WallCoord.Y, TileType.Empty);
+                                }
+                            }
+                            else
+                            {
+                                IsTreasure4Pending = true;
+                                IsTreasure4Spawned = false;
+                            }
                         }
                     }
                 }

@@ -31,8 +31,11 @@ public sealed class HieroglyphRenderer : IDisposable
     public const int MURAL_LEVEL2_Y = 16; // Posición Y en pantalla virtual (fila 1)
 
     private readonly Texture2D _muralTexture;
+    private readonly Texture2D _muralChamber2Texture;
     private readonly Texture2D _muralLevel1Texture;
+    private readonly Texture2D _muralLevel1Chamber2Texture;
     private readonly Texture2D _muralLevel2Texture;
+    private readonly Texture2D _muralLevel2Chamber2Texture;
     private Rectangle _destRect = new(0, MURAL_Y, MURAL_WIDTH, MURAL_HEIGHT);
     private Rectangle _destRectAlt = new(0, MURAL_Y + 8, MURAL_WIDTH, MURAL_HEIGHT);
     private Rectangle _destRectLevel1 = new(0, MURAL_LEVEL1_Y, MURAL_LEVEL1_WIDTH, MURAL_LEVEL1_HEIGHT);
@@ -41,15 +44,21 @@ public sealed class HieroglyphRenderer : IDisposable
     private bool _isDisposed;
 
     public Texture2D MuralTexture => _muralTexture;
+    public Texture2D MuralChamber2Texture => _muralChamber2Texture;
     public Texture2D MuralLevel1Texture => _muralLevel1Texture;
+    public Texture2D MuralLevel1Chamber2Texture => _muralLevel1Chamber2Texture;
     public Texture2D MuralLevel2Texture => _muralLevel2Texture;
+    public Texture2D MuralLevel2Chamber2Texture => _muralLevel2Chamber2Texture;
 
     public HieroglyphRenderer(GraphicsDevice graphicsDevice)
     {
         ArgumentNullException.ThrowIfNull(graphicsDevice);
         _muralTexture = GenerateMuralTexture(graphicsDevice);
+        _muralChamber2Texture = GenerateMuralChamber2Texture(graphicsDevice);
         _muralLevel1Texture = GenerateMuralLevel1Texture(graphicsDevice);
+        _muralLevel1Chamber2Texture = GenerateMuralLevel1Chamber2Texture(graphicsDevice);
         _muralLevel2Texture = GenerateMuralLevel2Texture(graphicsDevice);
+        _muralLevel2Chamber2Texture = GenerateMuralLevel2Chamber2Texture(graphicsDevice);
     }
 
     /// <summary>
@@ -64,10 +73,13 @@ public sealed class HieroglyphRenderer : IDisposable
             return;
 
         bool isAltLayout = chamberNumber is 2 or 4 or 6 or 8;
+        Texture2D level0Mural = chamberNumber == 2 ? _muralChamber2Texture : _muralTexture;
+        Texture2D level1Mural = chamberNumber == 2 ? _muralLevel1Chamber2Texture : _muralLevel1Texture;
+        Texture2D level2Mural = chamberNumber == 2 ? _muralLevel2Chamber2Texture : _muralLevel2Texture;
 
-        spriteBatch.Draw(_muralLevel2Texture, _destRectLevel2, Color.White);
-        spriteBatch.Draw(_muralLevel1Texture, isAltLayout ? _destRectLevel1Alt : _destRectLevel1, Color.White);
-        spriteBatch.Draw(_muralTexture, isAltLayout ? _destRectAlt : _destRect, Color.White);
+        spriteBatch.Draw(level2Mural, _destRectLevel2, Color.White);
+        spriteBatch.Draw(level1Mural, isAltLayout ? _destRectLevel1Alt : _destRectLevel1, Color.White);
+        spriteBatch.Draw(level0Mural, isAltLayout ? _destRectAlt : _destRect, Color.White);
     }
 
     public void Dispose()
@@ -75,8 +87,11 @@ public sealed class HieroglyphRenderer : IDisposable
         if (!_isDisposed)
         {
             _muralTexture?.Dispose();
+            _muralChamber2Texture?.Dispose();
             _muralLevel1Texture?.Dispose();
+            _muralLevel1Chamber2Texture?.Dispose();
             _muralLevel2Texture?.Dispose();
+            _muralLevel2Chamber2Texture?.Dispose();
             _isDisposed = true;
         }
     }
@@ -89,6 +104,14 @@ public sealed class HieroglyphRenderer : IDisposable
         return texture;
     }
 
+    private static Texture2D GenerateMuralChamber2Texture(GraphicsDevice graphicsDevice)
+    {
+        Texture2D texture = new(graphicsDevice, MURAL_WIDTH, MURAL_HEIGHT);
+        Color[] pixels = GenerateMuralChamber2Pixels(MURAL_WIDTH, MURAL_HEIGHT);
+        texture.SetData(pixels);
+        return texture;
+    }
+
     private static Texture2D GenerateMuralLevel1Texture(GraphicsDevice graphicsDevice)
     {
         Texture2D texture = new(graphicsDevice, MURAL_LEVEL1_WIDTH, MURAL_LEVEL1_HEIGHT);
@@ -97,10 +120,26 @@ public sealed class HieroglyphRenderer : IDisposable
         return texture;
     }
 
+    private static Texture2D GenerateMuralLevel1Chamber2Texture(GraphicsDevice graphicsDevice)
+    {
+        Texture2D texture = new(graphicsDevice, MURAL_LEVEL1_WIDTH, MURAL_LEVEL1_HEIGHT);
+        Color[] pixels = GenerateMuralLevel1Chamber2Pixels(MURAL_LEVEL1_WIDTH, MURAL_LEVEL1_HEIGHT);
+        texture.SetData(pixels);
+        return texture;
+    }
+
     private static Texture2D GenerateMuralLevel2Texture(GraphicsDevice graphicsDevice)
     {
         Texture2D texture = new(graphicsDevice, MURAL_LEVEL2_WIDTH, MURAL_LEVEL2_HEIGHT);
         Color[] pixels = GenerateMuralLevel2Pixels(MURAL_LEVEL2_WIDTH, MURAL_LEVEL2_HEIGHT);
+        texture.SetData(pixels);
+        return texture;
+    }
+
+    private static Texture2D GenerateMuralLevel2Chamber2Texture(GraphicsDevice graphicsDevice)
+    {
+        Texture2D texture = new(graphicsDevice, MURAL_LEVEL2_WIDTH, MURAL_LEVEL2_HEIGHT);
+        Color[] pixels = GenerateMuralLevel2Chamber2Pixels(MURAL_LEVEL2_WIDTH, MURAL_LEVEL2_HEIGHT);
         texture.SetData(pixels);
         return texture;
     }
@@ -160,6 +199,46 @@ public sealed class HieroglyphRenderer : IDisposable
 
         // Cofre Radiante Extra (Tesoro Faraónico Renacido) en x = 213
         DrawRadiantChestGlyph(pixels, width, 213, 13, stone, ochre, fadedGold, radiantGold, turquoise, groove);
+
+        return pixels;
+    }
+
+    /// <summary>
+    /// Genera la matriz de píxeles del mural jeroglífico del Nivel 0 para la Recámara 2:
+    /// [Cofre Nivel 0] + [Llave] + [Momia + Salto] -> [2 Puertas (II)] -> [Cofre Radiante Extra].
+    /// </summary>
+    public static Color[] GenerateMuralChamber2Pixels(int width, int height)
+    {
+        Color[] pixels = new Color[width * height];
+        Array.Fill(pixels, Color.Transparent);
+
+        Color groove = new(38, 28, 34);
+        Color stone = new(78, 58, 48);
+        Color ochre = new(105, 78, 50);
+        Color fadedGold = new(136, 102, 52);
+        Color radiantGold = new(165, 126, 62);
+        Color turquoise = new(45, 96, 90);
+        Color redOchre = new(115, 48, 38);
+
+        // 1. Cenefa decorativa (dejando libre la Escalera 1 en columna 6, X = 96..111)
+        DrawFrieze(pixels, width, 18, 90, groove, stone, ochre);
+        DrawFrieze(pixels, width, 114, 242, groove, stone, ochre);
+
+        // 2. Sección Izquierda: Ojo de Horus y Cartucho Sagrado
+        DrawEyeOfHorus(pixels, width, 24, 18, stone, ochre, turquoise, fadedGold, groove);
+        DrawPharaohCartouche(pixels, width, 52, 14, stone, ochre, turquoise, groove);
+
+        // 3. Fórmula visual del Puzle 1 de Recámara 2 (X = 116..240):
+        // [Cofre Nivel 0] + [Llave] + [Momia + Salto] -> [2 Puertas (II)] -> [Cofre Radiante Extra]
+        DrawChestGlyph(pixels, width, 116, 18, stone, ochre, fadedGold, groove);
+        DrawAnkhGlyph(pixels, width, 131, 19, stone, ochre, fadedGold);
+        DrawKeyGlyph(pixels, width, 140, 17, stone, fadedGold, groove);
+        DrawAnkhGlyph(pixels, width, 151, 19, stone, ochre, fadedGold);
+        DrawMummyJump1xGlyph(pixels, width, 160, 13, stone, ochre, fadedGold, radiantGold, redOchre);
+        DrawArrowGlyph(pixels, width, 178, 22, redOchre, ochre);
+        DrawTwoDoorsGlyph(pixels, width, 191, 13, stone, ochre, fadedGold, groove);
+        DrawArrowGlyph(pixels, width, 211, 22, redOchre, ochre);
+        DrawRadiantChestGlyph(pixels, width, 224, 13, stone, ochre, fadedGold, radiantGold, turquoise, groove);
 
         return pixels;
     }
@@ -338,6 +417,86 @@ public sealed class HieroglyphRenderer : IDisposable
             // Umbral
             for (int x = dx; x <= dx + 6; x++)
                 SetPixel(pixels, width, x, doorY + 11, stone);
+        }
+    }
+
+    private static void DrawTwoDoorsGlyph(Color[] pixels, int width, int startX, int startY, Color stone, Color ochre, Color gold, Color groove)
+    {
+        // 1. Marcas jeroglíficas superiores indicando dos ciclos (II)
+        for (int y = startY; y <= startY + 2; y++)
+        {
+            SetPixel(pixels, width, startX + 3, y, gold);   // I
+            SetPixel(pixels, width, startX + 12, y, gold);  // II
+        }
+
+        // 2. Dos Pilonos / Puertas ceremoniales
+        int doorY = startY + 4;
+        for (int d = 0; d < 2; d++)
+        {
+            int dx = startX + (d * 9);
+
+            for (int x = dx; x <= dx + 6; x++)
+                SetPixel(pixels, width, x, doorY, ochre);
+
+            for (int x = dx + 1; x <= dx + 5; x++)
+                SetPixel(pixels, width, x, doorY + 1, stone);
+
+            for (int y = doorY + 2; y <= doorY + 10; y++)
+            {
+                SetPixel(pixels, width, dx + 1, y, stone);
+                SetPixel(pixels, width, dx + 5, y, stone);
+                for (int x = dx + 2; x <= dx + 4; x++)
+                {
+                    SetPixel(pixels, width, x, y, groove);
+                }
+            }
+
+            for (int x = dx; x <= dx + 6; x++)
+                SetPixel(pixels, width, x, doorY + 11, stone);
+        }
+    }
+
+    private static void DrawMummyJump1xGlyph(
+        Color[] pixels, int width, int startX, int startY,
+        Color stone, Color ochre, Color gold, Color radiantGold, Color redOchre)
+    {
+        // Marca ritual superior (I) indicando saltar la momia del Nivel 1
+        for (int y = startY; y <= startY + 2; y++)
+        {
+            SetPixel(pixels, width, startX + 6, y, radiantGold);
+        }
+
+        // Arco parabólico de salto sobre la momia
+        int arcY = startY + 3;
+        SetPixel(pixels, width, startX + 1, arcY + 3, gold);
+        SetPixel(pixels, width, startX + 2, arcY + 2, gold);
+        SetPixel(pixels, width, startX + 3, arcY + 1, radiantGold);
+        for (int x = startX + 4; x <= startX + 8; x++)
+            SetPixel(pixels, width, x, arcY, radiantGold);
+        SetPixel(pixels, width, startX + 9, arcY + 1, radiantGold);
+        SetPixel(pixels, width, startX + 10, arcY + 2, gold);
+        SetPixel(pixels, width, startX + 11, arcY + 3, gold);
+
+        // Silueta de la momia vendada debajo del arco
+        int mX = startX + 3;
+        int mY = startY + 7;
+        for (int x = mX + 1; x <= mX + 4; x++)
+            SetPixel(pixels, width, x, mY, gold);
+        for (int x = mX + 1; x <= mX + 4; x++)
+            SetPixel(pixels, width, x, mY + 1, ochre);
+        SetPixel(pixels, width, mX + 3, mY + 1, redOchre);
+
+        for (int y = mY + 2; y <= mY + 5; y++)
+        {
+            Color band = (y % 2 == 0) ? gold : stone;
+            for (int x = mX; x <= mX + 5; x++)
+                SetPixel(pixels, width, x, y, band);
+        }
+
+        for (int y = mY + 6; y <= mY + 8; y++)
+        {
+            SetPixel(pixels, width, mX + 1, y, stone);
+            SetPixel(pixels, width, mX + 4, y, ochre);
         }
     }
 
@@ -664,6 +823,109 @@ public sealed class HieroglyphRenderer : IDisposable
         for (int x = mummyX + 1; x <= mummyX + 4; x++)
             SetPixelLevel1(pixels, width, height, x, mummyY + 17, groove);
         for (int x = mummyX + 5; x <= mummyX + 8; x++)
+            SetPixelLevel1(pixels, width, height, x, mummyY + 17, groove);
+    }
+
+    /// <summary>
+    /// Genera la matriz de píxeles del mural jeroglífico del Nivel 1 para la Recámara 2:
+    /// [Momia + Salto 2x (II)] -> [Momia Cayendo al Nivel 0 (⬇)] -> [Momia + Salto 2x (II)] -> [Nuevo Tesoro ☥].
+    /// </summary>
+    public static Color[] GenerateMuralLevel1Chamber2Pixels(int width, int height)
+    {
+        Color[] pixels = new Color[width * height];
+        Array.Fill(pixels, Color.Transparent);
+
+        Color groove = new(38, 28, 34);
+        Color stone = new(78, 58, 48);
+        Color ochre = new(105, 78, 50);
+        Color fadedGold = new(136, 102, 52);
+        Color radiantGold = new(165, 126, 62);
+        Color turquoise = new(45, 96, 90);
+        Color redOchre = new(115, 48, 38);
+
+        // 1. Cenefa decorativa superior e inferior (X = 20..202, a la izquierda de la Escalera 2 en X = 208..223)
+        DrawFriezeLevel1(pixels, width, height, 20, 202, groove, stone, ochre);
+
+        // 2. Glifo 1: Momia en Nivel 1 + Salto 2x (II) en x = 22..54
+        DrawMummyJump2xLevel1Glyph(pixels, width, height, 22, 6, stone, ochre, fadedGold, radiantGold, redOchre, groove);
+
+        // 3. Flecha 1 (->) en x = 56
+        DrawArrowLevel1Glyph(pixels, width, height, 56, 24, redOchre, ochre);
+
+        // 4. Glifo 2: Momia cayendo por el foso al Nivel 0 (⬇) en x = 68..110
+        DrawMummyFallingPitGlyph(pixels, width, height, 68, 8, stone, ochre, redOchre, groove);
+
+        // 5. Flecha 2 (->) en x = 114
+        DrawArrowLevel1Glyph(pixels, width, height, 114, 24, redOchre, ochre);
+
+        // 6. Glifo 3: Momia caída en Nivel 0 + Salto 2x adicional (II) en x = 126..158
+        DrawMummyJump2xLevel1Glyph(pixels, width, height, 126, 6, stone, ochre, fadedGold, radiantGold, redOchre, groove);
+
+        // 7. Flecha 3 (->) en x = 160
+        DrawArrowLevel1Glyph(pixels, width, height, 160, 24, redOchre, ochre);
+
+        // 8. Glifo 4: Nuevo Cofre Sagrado Radiante + Cruz Ankh en x = 173..200
+        DrawRadiantTreasureRenewedGlyph(pixels, width, height, 173, 10, stone, ochre, fadedGold, radiantGold, turquoise, groove);
+
+        return pixels;
+    }
+
+    private static void DrawMummyJump2xLevel1Glyph(
+        Color[] pixels, int width, int height, int startX, int startY,
+        Color stone, Color ochre, Color fadedGold, Color radiantGold, Color redOchre, Color groove)
+    {
+        // 1. Las 2 Marcas Sagradas ("II") en lo alto del arco indicando 2 saltos
+        for (int i = 0; i < 2; i++)
+        {
+            int mx = startX + 14 + (i * 4);
+            SetPixelLevel1(pixels, width, height, mx, startY, radiantGold);
+            for (int y = startY + 1; y <= startY + 4; y++)
+            {
+                SetPixelLevel1(pixels, width, height, mx, y, fadedGold);
+            }
+        }
+
+        // 2. Parábola de salto arqueada sobre la momia
+        int apexX = startX + 16;
+        int apexY = startY + 6;
+        for (int x = startX + 2; x <= startX + 30; x++)
+        {
+            float dx = x - apexX;
+            int arcY = apexY + (int)((dx * dx) / 12f);
+            if (arcY <= startY + 32)
+            {
+                SetPixelLevel1(pixels, width, height, x, arcY, ochre);
+                SetPixelLevel1(pixels, width, height, x, arcY + 1, stone);
+            }
+        }
+
+        // 3. Glifo de la Momia bajo el salto
+        int mummyX = startX + 11;
+        int mummyY = startY + 16;
+
+        for (int x = mummyX + 2; x <= mummyX + 7; x++)
+            SetPixelLevel1(pixels, width, height, x, mummyY, stone);
+        for (int x = mummyX + 1; x <= mummyX + 8; x++)
+            SetPixelLevel1(pixels, width, height, x, mummyY + 1, ochre);
+
+        SetPixelLevel1(pixels, width, height, mummyX + 3, mummyY + 2, redOchre);
+        SetPixelLevel1(pixels, width, height, mummyX + 6, mummyY + 2, redOchre);
+
+        for (int y = mummyY + 4; y <= mummyY + 10; y++)
+        {
+            for (int x = mummyX + 1; x <= mummyX + 8; x++)
+            {
+                Color wrapCol = ((x + y) % 2 == 0) ? ochre : stone;
+                SetPixelLevel1(pixels, width, height, x, y, wrapCol);
+            }
+        }
+
+        for (int y = mummyY + 11; y <= mummyY + 16; y++)
+        {
+            SetPixelLevel1(pixels, width, height, mummyX + 2, y, stone);
+            SetPixelLevel1(pixels, width, height, mummyX + 7, y, stone);
+        }
+        for (int x = mummyX + 1; x <= mummyX + 8; x++)
             SetPixelLevel1(pixels, width, height, x, mummyY + 17, groove);
     }
 
@@ -1165,5 +1427,150 @@ public sealed class HieroglyphRenderer : IDisposable
 
         for (int x = chamX; x <= chamX + 8; x++)
             SetPixelLevel2(pixels, width, height, x, chamY + 10, stone);
+    }
+
+    /// <summary>
+    /// Genera la matriz de píxeles del mural jeroglífico del Nivel 2 para la Recámara 2 (Puzle 3):
+    /// [Puzles 1 y 2 Completados (I + II)] -> [Salto 1x sobre Momia (I) + Trampa (⬇) x2 (II)] -> [Nuevo Tesoro en Cámara ☥].
+    /// </summary>
+    public static Color[] GenerateMuralLevel2Chamber2Pixels(int width, int height)
+    {
+        Color[] pixels = new Color[width * height];
+        Array.Fill(pixels, Color.Transparent);
+
+        Color groove = new(38, 28, 34);
+        Color stone = new(78, 58, 48);
+        Color ochre = new(105, 78, 50);
+        Color fadedGold = new(136, 102, 52);
+        Color radiantGold = new(165, 126, 62);
+        Color turquoise = new(45, 96, 90);
+        Color redOchre = new(115, 48, 38);
+
+        // 1. Cenefa decorativa superior e inferior
+        DrawFriezeLevel2(pixels, width, height, 36, 290, groove, stone, ochre);
+
+        // 2. Glifo 1: Puzles 1 y 2 completados ([Cofre I] + [Cofre II]) en x = 42..86
+        DrawPuzzles1And2CompletedLevel2Glyph(pixels, width, height, 42, 12, stone, ochre, fadedGold, radiantGold, turquoise, groove);
+
+        // 3. Conector Ritual 1: Flecha hacia la derecha en x = 92
+        DrawArrowLevel2Glyph(pixels, width, height, 92, 28, redOchre, ochre);
+
+        // 4. Glifo 2: Salto 1x (I) sobre la Momia de Nivel 2 frente a la trampa en x = 106..152
+        DrawMummyJump1xBeforeTrapLevel2Glyph(pixels, width, height, 106, 8, stone, ochre, fadedGold, radiantGold, redOchre, groove);
+
+        // 5. Conector Ritual 2: Flecha hacia la derecha en x = 158
+        DrawArrowLevel2Glyph(pixels, width, height, 158, 28, redOchre, ochre);
+
+        // 6. Glifo 3: Momia cayendo por la trampa y repetir 2 veces (II + ⬇) en x = 172..220
+        DrawMummyFallingTrap2xGlyph(pixels, width, height, 172, 8, stone, ochre, fadedGold, radiantGold, redOchre, groove);
+
+        // 7. Conector Ritual 3: Flecha hacia la derecha en x = 226
+        DrawArrowLevel2Glyph(pixels, width, height, 226, 28, redOchre, ochre);
+
+        // 8. Glifo 4: Nuevo Tesoro Sagrado en Cámara en x = 240..282
+        DrawRenewedTreasureInChamberGlyph(pixels, width, height, 240, 10, stone, ochre, fadedGold, radiantGold, turquoise, groove);
+
+        return pixels;
+    }
+
+    private static void DrawPuzzles1And2CompletedLevel2Glyph(
+        Color[] pixels, int width, int height, int startX, int startY,
+        Color stone, Color ochre, Color fadedGold, Color radiantGold, Color turquoise, Color groove)
+    {
+        // Marca "I" sobre el primer cofre (Puzle 1)
+        SetPixelLevel2(pixels, width, height, startX + 6, startY, radiantGold);
+        for (int y = startY + 1; y <= startY + 4; y++)
+            SetPixelLevel2(pixels, width, height, startX + 6, y, fadedGold);
+
+        DrawMiniChestLevel2(pixels, width, height, startX, startY + 6, stone, ochre, fadedGold, turquoise, groove);
+
+        // Cruz Ankh (+) en el centro
+        int ankhX = startX + 16;
+        int ankhY = startY + 7;
+        SetPixelLevel2(pixels, width, height, ankhX + 2, ankhY, fadedGold);
+        SetPixelLevel2(pixels, width, height, ankhX + 1, ankhY + 1, fadedGold);
+        SetPixelLevel2(pixels, width, height, ankhX + 3, ankhY + 1, fadedGold);
+        SetPixelLevel2(pixels, width, height, ankhX + 2, ankhY + 2, fadedGold);
+        for (int x = ankhX; x <= ankhX + 4; x++)
+            SetPixelLevel2(pixels, width, height, x, ankhY + 3, fadedGold);
+        for (int y = ankhY + 4; y <= ankhY + 7; y++)
+            SetPixelLevel2(pixels, width, height, ankhX + 2, y, ochre);
+
+        // Marca "II" sobre el segundo cofre (Puzle 2)
+        int chest2X = startX + 24;
+        for (int i = 0; i < 2; i++)
+        {
+            int mx = chest2X + 4 + (i * 4);
+            SetPixelLevel2(pixels, width, height, mx, startY, radiantGold);
+            for (int y = startY + 1; y <= startY + 4; y++)
+                SetPixelLevel2(pixels, width, height, mx, y, fadedGold);
+        }
+
+        DrawMiniChestLevel2(pixels, width, height, chest2X, startY + 6, stone, ochre, fadedGold, turquoise, groove);
+    }
+
+    private static void DrawMiniChestLevel2(
+        Color[] pixels, int width, int height, int startX, int startY,
+        Color stone, Color ochre, Color fadedGold, Color turquoise, Color groove)
+    {
+        for (int x = startX + 1; x <= startX + 11; x++)
+            SetPixelLevel2(pixels, width, height, x, startY, fadedGold);
+        for (int x = startX; x <= startX + 12; x++)
+            SetPixelLevel2(pixels, width, height, x, startY + 1, groove);
+
+        for (int y = startY + 2; y <= startY + 7; y++)
+        {
+            SetPixelLevel2(pixels, width, height, startX, y, stone);
+            SetPixelLevel2(pixels, width, height, startX + 12, y, stone);
+            for (int x = startX + 1; x <= startX + 11; x++)
+                SetPixelLevel2(pixels, width, height, x, y, ochre);
+        }
+
+        SetPixelLevel2(pixels, width, height, startX + 6, startY + 4, turquoise);
+        for (int x = startX; x <= startX + 12; x++)
+            SetPixelLevel2(pixels, width, height, x, startY + 8, stone);
+    }
+
+    private static void DrawMummyJump1xBeforeTrapLevel2Glyph(
+        Color[] pixels, int width, int height, int startX, int startY,
+        Color stone, Color ochre, Color fadedGold, Color radiantGold, Color redOchre, Color groove)
+    {
+        // 1. Marca sagrada "I" (1 salto sobre la momia de Nivel 2)
+        int mx = startX + 9;
+        SetPixelLevel2(pixels, width, height, mx, startY, radiantGold);
+        for (int y = startY + 1; y <= startY + 5; y++)
+            SetPixelLevel2(pixels, width, height, mx, y, fadedGold);
+
+        // 2. Arco de salto sobre la momia
+        for (int x = startX + 3; x <= startX + 15; x++)
+        {
+            int dy = (x == startX + 3 || x == startX + 15) ? 10 :
+                     (x == startX + 4 || x == startX + 14) ? 8 : 7;
+            SetPixelLevel2(pixels, width, height, x, startY + dy, radiantGold);
+        }
+        SetPixelLevel2(pixels, width, height, startX + 15, startY + 9, redOchre);
+
+        // 3. Momia de Nivel 2 y trampa cerrada a su lado
+        DrawMummyTrap3xGlyph(pixels, width, height, startX, startY, stone, ochre, fadedGold, radiantGold, redOchre, groove);
+        // Limpiar las 3 marcas superiores de DrawMummyTrap3xGlyph y dejar "I" sobre el salto
+        for (int i = 0; i < 3; i++)
+        {
+            int oldMx = startX + 20 + (i * 4);
+            for (int y = startY; y <= startY + 5; y++)
+                SetPixelLevel2(pixels, width, height, oldMx, y, Color.Transparent);
+        }
+    }
+
+    private static void DrawMummyFallingTrap2xGlyph(
+        Color[] pixels, int width, int height, int startX, int startY,
+        Color stone, Color ochre, Color fadedGold, Color radiantGold, Color redOchre, Color groove)
+    {
+        DrawMummyFallingTrap3xGlyph(pixels, width, height, startX, startY, stone, ochre, fadedGold, radiantGold, redOchre, groove);
+        // Ajustar las marcas de caída de "III" a "II" (repetir 2 veces)
+        int thirdMarkX = startX + 4 + (2 * 4);
+        for (int y = startY + 2; y <= startY + 7; y++)
+        {
+            SetPixelLevel2(pixels, width, height, thirdMarkX, y, Color.Transparent);
+        }
     }
 }

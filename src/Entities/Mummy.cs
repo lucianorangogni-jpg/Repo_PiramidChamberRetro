@@ -40,7 +40,11 @@ public sealed class Mummy
     public bool IsChasing { get; private set; }
     public bool IsFalling { get; private set; }
     public bool HasReachedLevel0 { get; private set; }
+    public int RequiredJumpOvers { get; private set; } = REQUIRED_JUMP_OVERS;
+    public int RequiredLevel0JumpOvers { get; private set; }
     public int JumpOverCount { get; private set; }
+    public int Level0JumpOverCount { get; private set; }
+    public bool IsPuzzleCompleted => HasReachedLevel0 && Level0JumpOverCount >= RequiredLevel0JumpOvers;
 
     public Mummy(
         float spawnX,
@@ -49,7 +53,9 @@ public sealed class Mummy
         float maxX,
         Direction initialFacing = Direction.Right,
         bool initiallyAwake = true,
-        bool initiallyActive = true)
+        bool initiallyActive = true,
+        int requiredJumpOvers = REQUIRED_JUMP_OVERS,
+        int requiredLevel0JumpOvers = 0)
     {
         _spawnPosition = new Vector2(spawnX, spawnY);
         _position = _spawnPosition;
@@ -59,6 +65,8 @@ public sealed class Mummy
         _facing = initialFacing;
         _initialAwake = initiallyAwake;
         _initialActive = initiallyActive;
+        RequiredJumpOvers = requiredJumpOvers;
+        RequiredLevel0JumpOvers = requiredLevel0JumpOvers;
         IsAwake = initiallyAwake;
         IsActive = initiallyActive;
     }
@@ -73,7 +81,9 @@ public sealed class Mummy
         float maxX,
         Direction initialFacing = Direction.Right,
         bool initiallyAwake = true,
-        bool initiallyActive = true)
+        bool initiallyActive = true,
+        int requiredJumpOvers = REQUIRED_JUMP_OVERS,
+        int requiredLevel0JumpOvers = 0)
     {
         _spawnPosition = new Vector2(spawnX, spawnY);
         _minX = minX;
@@ -81,6 +91,8 @@ public sealed class Mummy
         _spawnFacing = initialFacing;
         _initialAwake = initiallyAwake;
         _initialActive = initiallyActive;
+        RequiredJumpOvers = requiredJumpOvers;
+        RequiredLevel0JumpOvers = requiredLevel0JumpOvers;
         Reset();
     }
 
@@ -105,16 +117,27 @@ public sealed class Mummy
         IsFalling = false;
         HasReachedLevel0 = false;
         JumpOverCount = 0;
+        Level0JumpOverCount = 0;
     }
 
     /// <summary>
-    /// Registra un salto limpio sobre la momia. Al alcanzar 4 saltos, desata el modo persecución.
-    /// Retorna true si activó el modo persecución en esta invocación.
+    /// Registra un salto limpio sobre la momia.
+    /// En Nivel 1: al alcanzar RequiredJumpOvers saltos consecutivos, desata el modo persecución y retorna true.
+    /// En Nivel 0 (tras caer): incrementa Level0JumpOverCount para completar el puzle en recámaras que lo requieren.
     /// </summary>
     public bool RegisterJumpOver()
     {
+        if (HasReachedLevel0)
+        {
+            if (Level0JumpOverCount < RequiredLevel0JumpOvers)
+            {
+                Level0JumpOverCount++;
+            }
+            return false;
+        }
+
         JumpOverCount++;
-        if (JumpOverCount >= REQUIRED_JUMP_OVERS && !IsChasing)
+        if (JumpOverCount >= RequiredJumpOvers && !IsChasing)
         {
             StartChasing();
             return true;
@@ -127,7 +150,14 @@ public sealed class Mummy
     /// </summary>
     public void ResetJumpOver()
     {
-        JumpOverCount = 0;
+        if (!HasReachedLevel0)
+        {
+            JumpOverCount = 0;
+        }
+        else if (!IsPuzzleCompleted)
+        {
+            Level0JumpOverCount = 0;
+        }
     }
 
     /// <summary>

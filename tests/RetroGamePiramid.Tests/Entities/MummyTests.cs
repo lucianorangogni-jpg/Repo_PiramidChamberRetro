@@ -537,4 +537,51 @@ public class MummyTests
         Assert.False(player.IsEliminated);
         Assert.Equal(3, player.Lives);
     }
+
+    [Fact]
+    public void Chamber2_MummyPuzzle2_Requires2JumpsOnLevel1ToChase_ThenFall_Then2JumpsOnLevel0ToComplete()
+    {
+        var mummy = new Mummy(
+            spawnX: 2 * GameConstants.TILE_SIZE,
+            spawnY: 9 * GameConstants.TILE_SIZE,
+            minX: 2 * GameConstants.TILE_SIZE,
+            maxX: 12 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            initialFacing: Direction.Right,
+            initiallyAwake: true,
+            initiallyActive: true,
+            requiredJumpOvers: 2,
+            requiredLevel0JumpOvers: 2);
+
+        Assert.False(mummy.IsChasing);
+        Assert.False(mummy.IsPuzzleCompleted);
+
+        // 1. Primer salto en Nivel 1: aún no persigue
+        bool chased1 = mummy.RegisterJumpOver();
+        Assert.False(chased1);
+        Assert.Equal(1, mummy.JumpOverCount);
+        Assert.False(mummy.IsChasing);
+
+        // 2. Segundo salto consecutivo en Nivel 1: empieza a perseguir
+        bool chased2 = mummy.RegisterJumpOver();
+        Assert.True(chased2);
+        Assert.Equal(2, mummy.JumpOverCount);
+        Assert.True(mummy.IsChasing);
+        Assert.False(mummy.IsPuzzleCompleted);
+
+        // 3. Cae al Nivel 0: llega al Nivel 0 pero aún NO completa el puzle (faltan los 2 saltos en Nivel 0)
+        mummy.LandOnLevel0();
+        Assert.True(mummy.HasReachedLevel0);
+        Assert.False(mummy.IsPuzzleCompleted);
+        Assert.Equal(0, mummy.Level0JumpOverCount);
+
+        // 4. Primer salto sobre la momia en Nivel 0: aún falta 1 salto más
+        mummy.RegisterJumpOver();
+        Assert.Equal(1, mummy.Level0JumpOverCount);
+        Assert.False(mummy.IsPuzzleCompleted);
+
+        // 5. Segundo salto sobre la momia en Nivel 0: se completa el puzle para hacer aparecer el nuevo tesoro
+        mummy.RegisterJumpOver();
+        Assert.Equal(2, mummy.Level0JumpOverCount);
+        Assert.True(mummy.IsPuzzleCompleted);
+    }
 }

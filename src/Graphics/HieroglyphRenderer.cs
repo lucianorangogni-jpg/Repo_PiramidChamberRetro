@@ -34,7 +34,9 @@ public sealed class HieroglyphRenderer : IDisposable
     private readonly Texture2D _muralLevel1Texture;
     private readonly Texture2D _muralLevel2Texture;
     private Rectangle _destRect = new(0, MURAL_Y, MURAL_WIDTH, MURAL_HEIGHT);
+    private Rectangle _destRectAlt = new(0, MURAL_Y + 8, MURAL_WIDTH, MURAL_HEIGHT);
     private Rectangle _destRectLevel1 = new(0, MURAL_LEVEL1_Y, MURAL_LEVEL1_WIDTH, MURAL_LEVEL1_HEIGHT);
+    private Rectangle _destRectLevel1Alt = new(0, MURAL_LEVEL1_Y + 16, MURAL_LEVEL1_WIDTH, MURAL_LEVEL1_HEIGHT);
     private Rectangle _destRectLevel2 = new(0, MURAL_LEVEL2_Y, MURAL_LEVEL2_WIDTH, MURAL_LEVEL2_HEIGHT);
     private bool _isDisposed;
 
@@ -51,20 +53,21 @@ public sealed class HieroglyphRenderer : IDisposable
     }
 
     /// <summary>
-    /// Dibuja los murales jeroglíficos en el fondo si la recámara activa es la Recámara 1.
+    /// Dibuja los murales jeroglíficos de los puzles en el fondo de las 10 recámaras de la pirámide.
     /// Totalmente libre de allocations en el bucle continuo.
     /// </summary>
     public void Draw(SpriteBatch spriteBatch, int chamberNumber)
     {
         ArgumentNullException.ThrowIfNull(spriteBatch);
 
-        // Los murales visuales pertenecen exclusivamente a la Recámara 1
-        if (chamberNumber != 1)
+        if (chamberNumber < 1 || chamberNumber > GameConstants.TOTAL_CHAMBERS)
             return;
 
+        bool isAltLayout = chamberNumber is 2 or 4 or 6 or 8;
+
         spriteBatch.Draw(_muralLevel2Texture, _destRectLevel2, Color.White);
-        spriteBatch.Draw(_muralLevel1Texture, _destRectLevel1, Color.White);
-        spriteBatch.Draw(_muralTexture, _destRect, Color.White);
+        spriteBatch.Draw(_muralLevel1Texture, isAltLayout ? _destRectLevel1Alt : _destRectLevel1, Color.White);
+        spriteBatch.Draw(_muralTexture, isAltLayout ? _destRectAlt : _destRect, Color.White);
     }
 
     public void Dispose()

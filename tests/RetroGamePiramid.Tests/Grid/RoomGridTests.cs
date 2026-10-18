@@ -195,4 +195,46 @@ public class RoomGridTests
         Assert.False(grid.IsEmpty(2, 2));
         Assert.False(grid.IsEmpty(-1, -1)); // Fuera de límites no es Empty
     }
+
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(2, 1)]
+    [InlineData(3, 1)]
+    [InlineData(4, 1)]
+    [InlineData(5, 2)]
+    [InlineData(6, 2)]
+    [InlineData(7, 2)]
+    [InlineData(8, 3)]
+    [InlineData(9, 3)]
+    [InlineData(10, 4)]
+    public void LoadChamber_MapsCorrectPyramidLevel_AndHasPlatformsLaddersAndExitDoor(int chamberNumber, int expectedPyramidLevel)
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(chamberNumber);
+
+        Assert.Equal(chamberNumber, grid.CurrentChamber);
+        Assert.Equal(expectedPyramidLevel, grid.PyramidLevel);
+        Assert.Equal(expectedPyramidLevel, RoomGrid.GetPyramidLevel(chamberNumber));
+        Assert.Equal($"Recamara {chamberNumber}", grid.RoomName);
+
+        // Verificar que tiene suelo base (fila 14), plataformas intermedias, escaleras y puerta de salida
+        bool hasExitDoor = false;
+        int ladderCount = 0;
+        int platformTiles = 0;
+
+        for (int y = 1; y < 14; y++)
+        {
+            for (int x = 1; x < 19; x++)
+            {
+                TileType tile = grid.GetTile(x, y);
+                if (tile == TileType.ExitDoor) hasExitDoor = true;
+                if (tile == TileType.Ladder) ladderCount++;
+                if (tile == TileType.SolidWall && y is >= 4 and <= 10) platformTiles++;
+            }
+        }
+
+        Assert.True(hasExitDoor, $"La Recámara {chamberNumber} debe tener una puerta de salida");
+        Assert.True(ladderCount >= 7, $"La Recámara {chamberNumber} debe tener escaleras entre plataformas");
+        Assert.True(platformTiles >= 20, $"La Recámara {chamberNumber} debe tener plataformas en Nivel 1 y Nivel 2");
+    }
 }

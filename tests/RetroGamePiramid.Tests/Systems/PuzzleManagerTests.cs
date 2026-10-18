@@ -614,7 +614,7 @@ public class PuzzleManagerTests
     }
 
     [Fact]
-    public void Chamber2_DoorCycles_DoNotTriggerChamber1SecretPuzzle()
+    public void Chamber2_DoorCycles_TriggersSecretPuzzleInAllChambers()
     {
         var grid = new RoomGrid();
         grid.LoadChamber(2);
@@ -636,7 +636,7 @@ public class PuzzleManagerTests
         Assert.True(puzzle.Key.IsCollected);
         Assert.True(puzzle.Treasure2.IsCollected);
 
-        // Realizar ciclos de abrir y cerrar
+        // Realizar 3 ciclos de abrir y cerrar
         for (int i = 0; i < 6; i++)
         {
             player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
@@ -645,10 +645,10 @@ public class PuzzleManagerTests
             puzzle.Update(grid, player);
         }
 
-        // En Recámara 2 no se recarga
-        Assert.True(puzzle.Treasure.IsCollected);
-        Assert.False(puzzle.HasSecretTreasureReloaded);
-        Assert.NotEqual(PuzzleManager.MSG_TREASURE_RELOAD, puzzle.NotificationMessage);
+        // En todas las recámaras el puzle secreto recarga el tesoro de la cámara
+        Assert.False(puzzle.Treasure.IsCollected);
+        Assert.True(puzzle.HasSecretTreasureReloaded);
+        Assert.Equal(PuzzleManager.MSG_TREASURE_RELOAD, puzzle.NotificationMessage);
     }
 
     [Fact]
@@ -853,15 +853,31 @@ public class PuzzleManagerTests
         Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.Trap2Coord));
     }
 
-    [Fact]
-    public void Initialize_Chamber2_DisablesTrap2()
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(2, 1)]
+    [InlineData(3, 1)]
+    [InlineData(4, 1)]
+    [InlineData(5, 2)]
+    [InlineData(6, 2)]
+    [InlineData(7, 2)]
+    [InlineData(8, 3)]
+    [InlineData(9, 3)]
+    [InlineData(10, 4)]
+    public void Initialize_All10Chambers_EnableTrap2_AndConfigureExitKeyAndTreasures(int chamberNumber, int expectedPyramidLevel)
     {
         var grid = new RoomGrid();
-        grid.LoadChamber(2);
+        grid.LoadChamber(chamberNumber);
         var puzzle = new PuzzleManager();
-        puzzle.Initialize(grid, 2);
+        puzzle.Initialize(grid, chamberNumber);
 
-        Assert.False(puzzle.HasTrap2);
+        Assert.Equal(chamberNumber, puzzle.CurrentChamber);
+        Assert.Equal(expectedPyramidLevel, puzzle.PyramidLevel);
+        Assert.True(puzzle.HasTrap2);
+        Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.TrapCoord));
+        Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.Trap2Coord));
+        Assert.Equal(TileType.ExitDoor, grid.GetTile(puzzle.ExitDoorCoord));
+        Assert.False(puzzle.Key.IsCollected);
     }
 
     [Fact]

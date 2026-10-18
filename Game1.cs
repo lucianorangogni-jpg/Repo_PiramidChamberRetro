@@ -37,18 +37,52 @@ public class Game1 : Game
     private bool _wasJumpingOverMummy;
     private int _respawnTimer;
 
-    private const string HUD_ROOM_NAME = "RECAMARA 1";
+    private static readonly string[] HudRoomTitles =
+    {
+        "RECAMARA: 1",
+        "RECAMARA: 1",
+        "RECAMARA: 2",
+        "RECAMARA: 3",
+        "RECAMARA: 4",
+        "RECAMARA: 5",
+        "RECAMARA: 6",
+        "RECAMARA: 7",
+        "RECAMARA: 8",
+        "RECAMARA: 9",
+        "RECAMARA: 10"
+    };
+
+    private static readonly string[] WinModalTitles =
+    {
+        "!RECAMARA 1 COMPLETADA!",
+        "!RECAMARA 1 COMPLETADA!",
+        "!RECAMARA 2 COMPLETADA!",
+        "!RECAMARA 3 COMPLETADA!",
+        "!RECAMARA 4 COMPLETADA!",
+        "!RECAMARA 5 COMPLETADA!",
+        "!RECAMARA 6 COMPLETADA!",
+        "!RECAMARA 7 COMPLETADA!",
+        "!RECAMARA 8 COMPLETADA!",
+        "!RECAMARA 9 COMPLETADA!",
+        "!RECAMARA 10 COMPLETADA!"
+    };
+
     private const string HUD_TEXT_MENU = "1: SALIR AL MENU";
+    private const string HUD_TEXT_EXIT = "1: SALIR";
     private const string HUD_TEXT_RESTART = "2: RE-INICIAR";
     private const string HUD_TEXT_CONTINUE = "2: CONTINUAR";
-    private const string HUD_STATUS_TITLE = "ESTADO";
     private const string HUD_POINTS_LABEL = "PUNTOS: ";
-    private const string HUD_LIVES_LABEL = "VIDAS:  ";
-    private const string HUD_KEY_LABEL = "LLAVE:  ";
+    private const string HUD_LIVES_COLON = ":  ";
+    private const string HUD_KEY_COLON = ": ";
     private const string HUD_KEY_YES = "SI";
     private const string HUD_KEY_NO = "NO";
     private const string TEXT_ELIMINATED = "ELIMINADO";
     private const string TEXT_GAME_OVER = "GAME OVER";
+
+    private static readonly Rectangle PlayerIconSourceRect = new(2, 2, 12, 14);
+    private static readonly Rectangle PlayerIconDestRect = new(18 + 5, 18 + 1, 12, 14);
+    private static readonly Rectangle KeyIconSourceRect = new(4, 5, 8, 11);
+    private static readonly Rectangle KeyIconDestRect = new(18 + 45, 18 + 2, 8, 11);
 
     private static readonly Color HudBgColor = new(16, 10, 22, 220);
     private static readonly Color HudBorderColor = new(150, 110, 50);
@@ -164,7 +198,7 @@ public class Game1 : Game
             bool right = keyboard.IsKeyDown(Keys.Right) || keyboard.IsKeyDown(Keys.D);
             bool confirm = keyboard.IsKeyDown(Keys.Enter) || keyboard.IsKeyDown(Keys.Space);
 
-            // Teclas directas 1 y 2 para selección rápida de recámara en el menú
+            // Teclas directas 1 a 0 para selección rápida de las 10 recámaras en el menú
             if ((keyboard.IsKeyDown(Keys.D1) || keyboard.IsKeyDown(Keys.NumPad1)) &&
                 !(_prevKeyboardState.IsKeyDown(Keys.D1) || _prevKeyboardState.IsKeyDown(Keys.NumPad1)))
             {
@@ -174,6 +208,46 @@ public class Game1 : Game
                      !(_prevKeyboardState.IsKeyDown(Keys.D2) || _prevKeyboardState.IsKeyDown(Keys.NumPad2)))
             {
                 _titleMenu.SelectedChamber = 2;
+            }
+            else if ((keyboard.IsKeyDown(Keys.D3) || keyboard.IsKeyDown(Keys.NumPad3)) &&
+                     !(_prevKeyboardState.IsKeyDown(Keys.D3) || _prevKeyboardState.IsKeyDown(Keys.NumPad3)))
+            {
+                _titleMenu.SelectedChamber = 3;
+            }
+            else if ((keyboard.IsKeyDown(Keys.D4) || keyboard.IsKeyDown(Keys.NumPad4)) &&
+                     !(_prevKeyboardState.IsKeyDown(Keys.D4) || _prevKeyboardState.IsKeyDown(Keys.NumPad4)))
+            {
+                _titleMenu.SelectedChamber = 4;
+            }
+            else if ((keyboard.IsKeyDown(Keys.D5) || keyboard.IsKeyDown(Keys.NumPad5)) &&
+                     !(_prevKeyboardState.IsKeyDown(Keys.D5) || _prevKeyboardState.IsKeyDown(Keys.NumPad5)))
+            {
+                _titleMenu.SelectedChamber = 5;
+            }
+            else if ((keyboard.IsKeyDown(Keys.D6) || keyboard.IsKeyDown(Keys.NumPad6)) &&
+                     !(_prevKeyboardState.IsKeyDown(Keys.D6) || _prevKeyboardState.IsKeyDown(Keys.NumPad6)))
+            {
+                _titleMenu.SelectedChamber = 6;
+            }
+            else if ((keyboard.IsKeyDown(Keys.D7) || keyboard.IsKeyDown(Keys.NumPad7)) &&
+                     !(_prevKeyboardState.IsKeyDown(Keys.D7) || _prevKeyboardState.IsKeyDown(Keys.NumPad7)))
+            {
+                _titleMenu.SelectedChamber = 7;
+            }
+            else if ((keyboard.IsKeyDown(Keys.D8) || keyboard.IsKeyDown(Keys.NumPad8)) &&
+                     !(_prevKeyboardState.IsKeyDown(Keys.D8) || _prevKeyboardState.IsKeyDown(Keys.NumPad8)))
+            {
+                _titleMenu.SelectedChamber = 8;
+            }
+            else if ((keyboard.IsKeyDown(Keys.D9) || keyboard.IsKeyDown(Keys.NumPad9)) &&
+                     !(_prevKeyboardState.IsKeyDown(Keys.D9) || _prevKeyboardState.IsKeyDown(Keys.NumPad9)))
+            {
+                _titleMenu.SelectedChamber = 9;
+            }
+            else if ((keyboard.IsKeyDown(Keys.D0) || keyboard.IsKeyDown(Keys.NumPad0)) &&
+                     !(_prevKeyboardState.IsKeyDown(Keys.D0) || _prevKeyboardState.IsKeyDown(Keys.NumPad0)))
+            {
+                _titleMenu.SelectedChamber = 10;
             }
 
             if (_titleMenu.Update(up, down, left, right, confirm, out MenuOption selectedAction))
@@ -221,8 +295,8 @@ public class Game1 : Game
 
                 if (press1)
                 {
-                    // 1: Pasar a otra recámara (alternar entre Recámara 1 y Recámara 2)
-                    int nextChamber = _currentChamber == 1 ? 2 : 1;
+                    // 1: Pasar a la siguiente recámara (1 -> 2 -> ... -> 10 -> 1)
+                    int nextChamber = _currentChamber < GameConstants.TOTAL_CHAMBERS ? _currentChamber + 1 : 1;
                     LoadChamber(nextChamber);
                 }
                 else if (press2)
@@ -300,8 +374,8 @@ public class Game1 : Game
                     _mummyPlatform1.WakeUp();
                 }
 
-                // Puzle 5 (Recámara 1): Detección de salto del jugador sobre la momia despierta de plataforma 1
-                if (_currentChamber == 1 && _mummyPlatform1.IsActive && _mummyPlatform1.IsAwake && !_mummyPlatform1.IsChasing && !_mummyPlatform1.HasReachedLevel0)
+                // Puzle 5: Detección de salto del jugador sobre la momia despierta de plataforma 1
+                if (_mummyPlatform1.IsActive && _mummyPlatform1.IsAwake && !_mummyPlatform1.IsChasing && !_mummyPlatform1.HasReachedLevel0)
                 {
                     if (_player.State == PlayerState.Jumping)
                     {
@@ -361,51 +435,62 @@ public class Game1 : Game
     }
 
     /// <summary>
-    /// Configura y carga una recámara específica por su identificador numérico.
+    /// Configura y carga una recámara específica (1 a 10) por su identificador numérico.
+    /// Todas las recámaras cuentan con momias en Nivel 1 y Nivel 2, puzles, trampas, plataformas, entrada y salida.
     /// </summary>
     public void LoadChamber(int chamberNumber)
     {
         _respawnTimer = 0;
         _wasJumpingOverMummy = false;
-        _currentChamber = chamberNumber;
-        _roomGrid.LoadChamber(chamberNumber);
-        _puzzleManager.Initialize(_roomGrid, chamberNumber);
-        if (chamberNumber == 2)
+        _currentChamber = (chamberNumber >= 1 && chamberNumber <= GameConstants.TOTAL_CHAMBERS) ? chamberNumber : 1;
+        _roomGrid.LoadChamber(_currentChamber);
+        _puzzleManager.Initialize(_roomGrid, _currentChamber);
+
+        if (_currentChamber is 2 or 4 or 6 or 8)
         {
+            // Recámaras con Nivel 2 en fila 6 (spawnY = 5*16) y Nivel 1 en fila 10 (spawnY = 9*16)
             _mummy.Configure(
-                spawnX: 10 * GameConstants.TILE_SIZE,
+                spawnX: 15 * GameConstants.TILE_SIZE,
                 spawnY: 5 * GameConstants.TILE_SIZE,
                 minX: 4 * GameConstants.TILE_SIZE,
                 maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
                 initialFacing: Direction.Right);
 
-            // En Recámara 2 la momia de plataforma 1 permanece desactivada
-            _mummyPlatform1.Configure(
-                spawnX: 0, spawnY: 0, minX: 0, maxX: 0,
-                initialFacing: Direction.Right,
-                initiallyAwake: false,
-                initiallyActive: false);
-        }
-        else
-        {
-            _mummy.Configure(
-                spawnX: 15 * GameConstants.TILE_SIZE,
-                spawnY: 4 * GameConstants.TILE_SIZE,
-                minX: 2 * GameConstants.TILE_SIZE,
-                maxX: 16 * GameConstants.TILE_SIZE - Mummy.WIDTH,
-                initialFacing: Direction.Right);
-
-            // En Recámara 1 la momia guardiana inicia inmóvil en el extremo izquierdo de plataforma 1
+            int level1GapCol = _currentChamber is 2 or 6 ? 12 : 11;
             _mummyPlatform1.Configure(
                 spawnX: 2 * GameConstants.TILE_SIZE,
-                spawnY: 8 * GameConstants.TILE_SIZE,
+                spawnY: 9 * GameConstants.TILE_SIZE,
                 minX: 2 * GameConstants.TILE_SIZE,
-                maxX: 11 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                maxX: level1GapCol * GameConstants.TILE_SIZE - Mummy.WIDTH,
                 initialFacing: Direction.Right,
                 initiallyAwake: false,
                 initiallyActive: true);
         }
-        _player.SetPosition(2 * GameConstants.TILE_SIZE + (GameConstants.TILE_SIZE - Player.WIDTH) / 2f, 13 * GameConstants.TILE_SIZE);
+        else
+        {
+            // Recámaras 1, 3, 5, 7, 9, 10 con Nivel 2 en fila 5 (spawnY = 4*16) y Nivel 1 en fila 9 (spawnY = 8*16)
+            int level2GapCol = _currentChamber is 3 or 7 ? 15 : 16;
+            _mummy.Configure(
+                spawnX: (level2GapCol - 1) * GameConstants.TILE_SIZE,
+                spawnY: 4 * GameConstants.TILE_SIZE,
+                minX: 2 * GameConstants.TILE_SIZE,
+                maxX: level2GapCol * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                initialFacing: Direction.Right);
+
+            int level1GapCol = _currentChamber == 5 ? 12 : 11;
+            _mummyPlatform1.Configure(
+                spawnX: 2 * GameConstants.TILE_SIZE,
+                spawnY: 8 * GameConstants.TILE_SIZE,
+                minX: 2 * GameConstants.TILE_SIZE,
+                maxX: level1GapCol * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                initialFacing: Direction.Right,
+                initiallyAwake: false,
+                initiallyActive: true);
+        }
+
+        _player.SetPosition(
+            _puzzleManager.PlayerSpawnCoord.X * GameConstants.TILE_SIZE + (GameConstants.TILE_SIZE - Player.WIDTH) / 2f,
+            _puzzleManager.PlayerSpawnCoord.Y * GameConstants.TILE_SIZE);
     }
 
     /// <summary>
@@ -428,7 +513,7 @@ public class Game1 : Game
         }
         else if (_currentScreen == GameScreen.Playing)
         {
-            // Dibuja el mural jeroglífico egipcio en el fondo del Nivel 0 (cero allocations)
+            // Dibuja el mural jeroglífico egipcio en el fondo (cero allocations)
             _hieroglyphRenderer.Draw(_spriteBatch, _currentChamber);
 
             // Dibuja las baldosas de la cámara (cero allocations)
@@ -444,54 +529,60 @@ public class Game1 : Game
             // Dibuja al arqueólogo con sus animaciones retro y orientación
             _playerRenderer.Draw(_spriteBatch, _player);
 
-            // Marco retro para las opciones en pantalla (lateral izquierdo)
-            int panelX = 18;
-            int panelY = 18;
-            int panelW = 90;
-            int panelH = 28;
+            // Placa HUD incrustada dentro del marco superior de la recámara (fila 0: Y = 0..15, fuera del área de juego)
+            // Formato: RECAMARA: X   PUNTOS: XXXXXX   1: SALIR   2: RE-INICIAR
+            int panelX = GameConstants.TILE_SIZE; // X = 16
+            int panelY = 2;
+            int panelW = GameConstants.VIRTUAL_WIDTH - (GameConstants.TILE_SIZE * 2); // 288 px
+            int panelH = 12;
 
             _pixelFont.DrawFrameBox(_spriteBatch, panelX, panelY, panelW, panelH, HudBgColor, HudBorderColor);
 
-            string roomTitle = _currentChamber == 1 ? "RECAMARA 1" : "RECAMARA 2";
-            _pixelFont.DrawMiniText(_spriteBatch, roomTitle, panelX + 5, panelY + 4, HudShadowColor);
-            _pixelFont.DrawMiniText(_spriteBatch, roomTitle, panelX + 4, panelY + 3, HudTitleColor);
+            string roomTitle = HudRoomTitles[_currentChamber];
+            _pixelFont.DrawMiniText(_spriteBatch, roomTitle, panelX + 7, panelY + 5, HudShadowColor);
+            _pixelFont.DrawMiniText(_spriteBatch, roomTitle, panelX + 6, panelY + 4, HudTitleColor);
 
-            _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_MENU, panelX + 5, panelY + 12, HudShadowColor);
-            _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_MENU, panelX + 4, panelY + 11, HudTextColor);
+            int ptsLabelX = panelX + 74;
+            _pixelFont.DrawMiniText(_spriteBatch, HUD_POINTS_LABEL, ptsLabelX + 1, panelY + 5, HudShadowColor);
+            _pixelFont.DrawMiniText(_spriteBatch, HUD_POINTS_LABEL, ptsLabelX, panelY + 4, HudTextColor);
+            int ptsValX = ptsLabelX + (HUD_POINTS_LABEL.Length * 5);
+            _pixelFont.DrawMiniInt(_spriteBatch, _puzzleManager.Score, ptsValX + 1, panelY + 5, HudShadowColor);
+            _pixelFont.DrawMiniInt(_spriteBatch, _puzzleManager.Score, ptsValX, panelY + 4, HudTitleColor);
 
-            _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_RESTART, panelX + 5, panelY + 20, HudShadowColor);
-            _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_RESTART, panelX + 4, panelY + 19, HudTextColor);
+            _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_EXIT, panelX + 159, panelY + 5, HudShadowColor);
+            _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_EXIT, panelX + 158, panelY + 4, HudTextColor);
 
-            // Panel HUD derecho: Estado de la partida (Puntaje, Vidas y Llave)
-            int rightPanelW = 90;
-            int rightPanelH = 36;
-            int rightPanelX = GameConstants.VIRTUAL_WIDTH - 18 - rightPanelW; // 320 - 18 - 90 = 212
-            int rightPanelY = 18;
+            _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_RESTART, panelX + 217, panelY + 5, HudShadowColor);
+            _pixelFont.DrawMiniText(_spriteBatch, HUD_TEXT_RESTART, panelX + 216, panelY + 4, HudTextColor);
 
-            _pixelFont.DrawFrameBox(_spriteBatch, rightPanelX, rightPanelY, rightPanelW, rightPanelH, HudBgColor, HudBorderColor);
+            // Cuadro de estado en una única línea ubicado a la izquierda: [Icono Jugador]:  X, [Icono Llave]: XX
+            int statusX = 18;
+            int statusY = 18;
+            int statusW = 80;
+            int statusH = 16;
+            int textY = statusY + 6;
 
-            _pixelFont.DrawMiniText(_spriteBatch, HUD_STATUS_TITLE, rightPanelX + 5, rightPanelY + 4, HudShadowColor);
-            _pixelFont.DrawMiniText(_spriteBatch, HUD_STATUS_TITLE, rightPanelX + 4, rightPanelY + 3, HudTitleColor);
+            _pixelFont.DrawFrameBox(_spriteBatch, statusX, statusY, statusW, statusH, HudBgColor, HudBorderColor);
 
-            _pixelFont.DrawMiniText(_spriteBatch, HUD_POINTS_LABEL, rightPanelX + 5, rightPanelY + 12, HudShadowColor);
-            _pixelFont.DrawMiniText(_spriteBatch, HUD_POINTS_LABEL, rightPanelX + 4, rightPanelY + 11, HudTextColor);
-            int ptsValX = rightPanelX + 4 + (HUD_POINTS_LABEL.Length * 5);
-            _pixelFont.DrawMiniInt(_spriteBatch, _puzzleManager.Score, ptsValX + 1, rightPanelY + 12, HudShadowColor);
-            _pixelFont.DrawMiniInt(_spriteBatch, _puzzleManager.Score, ptsValX, rightPanelY + 11, HudTextColor);
+            // 1. [Icono Jugador]:  X
+            _spriteBatch.Draw(_playerRenderer.IdleTexture, PlayerIconDestRect, PlayerIconSourceRect, Color.White);
+            int livesColonX = statusX + 18;
+            _pixelFont.DrawMiniText(_spriteBatch, HUD_LIVES_COLON, livesColonX + 1, textY + 1, HudShadowColor);
+            _pixelFont.DrawMiniText(_spriteBatch, HUD_LIVES_COLON, livesColonX, textY, HudTextColor);
+            int livesValX = livesColonX + (HUD_LIVES_COLON.Length * 5);
+            _pixelFont.DrawMiniInt(_spriteBatch, _player.Lives, livesValX + 1, textY + 1, HudShadowColor);
+            _pixelFont.DrawMiniInt(_spriteBatch, _player.Lives, livesValX, textY, HudTextColor);
 
-            _pixelFont.DrawMiniText(_spriteBatch, HUD_LIVES_LABEL, rightPanelX + 5, rightPanelY + 20, HudShadowColor);
-            _pixelFont.DrawMiniText(_spriteBatch, HUD_LIVES_LABEL, rightPanelX + 4, rightPanelY + 19, HudTextColor);
-            int livesValX = rightPanelX + 4 + (HUD_LIVES_LABEL.Length * 5);
-            _pixelFont.DrawMiniInt(_spriteBatch, _player.Lives, livesValX + 1, rightPanelY + 20, HudShadowColor);
-            _pixelFont.DrawMiniInt(_spriteBatch, _player.Lives, livesValX, rightPanelY + 19, HudTextColor);
-
-            _pixelFont.DrawMiniText(_spriteBatch, HUD_KEY_LABEL, rightPanelX + 5, rightPanelY + 28, HudShadowColor);
-            _pixelFont.DrawMiniText(_spriteBatch, HUD_KEY_LABEL, rightPanelX + 4, rightPanelY + 27, HudTextColor);
+            // 2. [Icono Llave]: XX
+            _spriteBatch.Draw(_puzzleRenderer.KeyTexture, KeyIconDestRect, KeyIconSourceRect, Color.White);
+            int keyColonX = statusX + 54;
+            _pixelFont.DrawMiniText(_spriteBatch, HUD_KEY_COLON, keyColonX + 1, textY + 1, HudShadowColor);
+            _pixelFont.DrawMiniText(_spriteBatch, HUD_KEY_COLON, keyColonX, textY, HudTextColor);
             string keyText = _puzzleManager.HasKey ? HUD_KEY_YES : HUD_KEY_NO;
             Color keyColor = _puzzleManager.HasKey ? new Color(255, 230, 80) : HudTextColor;
-            int keyValX = rightPanelX + 4 + (HUD_KEY_LABEL.Length * 5);
-            _pixelFont.DrawMiniText(_spriteBatch, keyText, keyValX + 1, rightPanelY + 28, HudShadowColor);
-            _pixelFont.DrawMiniText(_spriteBatch, keyText, keyValX, rightPanelY + 27, keyColor);
+            int keyValX = keyColonX + (HUD_KEY_COLON.Length * 5);
+            _pixelFont.DrawMiniText(_spriteBatch, keyText, keyValX + 1, textY + 1, HudShadowColor);
+            _pixelFont.DrawMiniText(_spriteBatch, keyText, keyValX, textY, keyColor);
 
             // Modal de Recámara Completada
             if (_puzzleManager.IsChamberCompleted)
@@ -503,7 +594,7 @@ public class Game1 : Game
 
                 _pixelFont.DrawFrameBox(_spriteBatch, winX, winY, winW, winH, ChamberWinBgColor, ChamberWinBorderColor);
 
-                string titleText = _currentChamber == 1 ? "!RECAMARA 1 COMPLETADA!" : "!RECAMARA 2 COMPLETADA!";
+                string titleText = WinModalTitles[_currentChamber];
                 _pixelFont.DrawMiniText(_spriteBatch, titleText, winX + 33, winY + 9, ChamberWinShadowColor);
                 _pixelFont.DrawMiniText(_spriteBatch, titleText, winX + 32, winY + 8, ChamberWinTitleColor);
 

@@ -14,6 +14,7 @@ namespace RetroGamePiramid.Systems;
 /// </summary>
 public sealed class PuzzleManager
 {
+    public GridCoord PlayerSpawnCoord { get; private set; } = new(2, 13);
     public GridCoord StoneCoord { get; private set; } = new(8, 13);
     public GridCoord WallCoord { get; private set; } = new(14, 13);
     public GridCoord TreasureCoord { get; private set; } = new(17, 13);
@@ -66,6 +67,7 @@ public sealed class PuzzleManager
     public bool IsChamberCompleted { get; private set; }
     public bool IsTreasure3Spawned { get; private set; }
     public int CurrentChamber { get; private set; } = 1;
+    public int PyramidLevel => RoomGrid.GetPyramidLevel(CurrentChamber);
     public int DoorCycleCount { get; private set; }
     public bool HasSecretTreasureReloaded { get; private set; }
     public int Score { get; private set; }
@@ -127,43 +129,108 @@ public sealed class PuzzleManager
     }
 
     /// <summary>
-    /// Configura el puzle en la cuadrícula de la cámara.
-    /// Crea el dintel de muro impenetrable en fila 10 a 12, el muro conmutable en fila 13 y la losa rúnica en col 8.
-    /// Adapta dinámicamente las coordenadas según la recámara activa.
+    /// Configura el puzle en la cuadrícula de la recámara (1 a 10).
+    /// Crea el dintel de muro impenetrable en fila 10 a 12, el muro conmutable en fila 13 y la losa rúnica.
+    /// Adapta dinámicamente las coordenadas según la recámara activa de la pirámide.
     /// </summary>
     public void Initialize(RoomGrid grid, int chamberNumber = 1)
     {
         ArgumentNullException.ThrowIfNull(grid);
 
-        if (chamberNumber == 2)
+        int normalized = (chamberNumber >= 1 && chamberNumber <= GameConstants.TOTAL_CHAMBERS) ? chamberNumber : 1;
+        PlayerSpawnCoord = new(2, 13);
+        WallCoord = new(14, 13);
+        TreasureCoord = new(17, 13);
+        Treasure3Coord = new(17, 13);
+        Treasure4Coord = new(17, 13);
+        HasTrap2 = true;
+
+        switch (normalized)
         {
-            StoneCoord = new(8, 13);
-            WallCoord = new(14, 13);
-            TreasureCoord = new(17, 13);
-            Treasure2Coord = new(8, 5);
-            Treasure3Coord = new(17, 13);
-            Treasure4Coord = new(17, 13);
-            ExitDoorCoord = new(1, 5);
-            KeyCoord = new(16, 7);
-            TrapCoord = new(16, 10);
-            HasTrap2 = false;
+            case 1:
+                StoneCoord = new(8, 13);
+                Treasure2Coord = new(8, 4);
+                ExitDoorCoord = new(18, 4);
+                KeyCoord = new(16, 6);
+                TrapCoord = new(16, 9);
+                Trap2Coord = new(13, 5);
+                break;
+            case 2:
+                StoneCoord = new(8, 13);
+                Treasure2Coord = new(8, 5);
+                ExitDoorCoord = new(1, 5);
+                KeyCoord = new(16, 7);
+                TrapCoord = new(16, 10);
+                Trap2Coord = new(11, 6);
+                break;
+            case 3:
+                StoneCoord = new(7, 13);
+                Treasure2Coord = new(6, 4);
+                ExitDoorCoord = new(18, 4);
+                KeyCoord = new(15, 6);
+                TrapCoord = new(15, 9);
+                Trap2Coord = new(12, 5);
+                break;
+            case 4:
+                StoneCoord = new(9, 13);
+                Treasure2Coord = new(7, 5);
+                ExitDoorCoord = new(1, 5);
+                KeyCoord = new(15, 7);
+                TrapCoord = new(15, 10);
+                Trap2Coord = new(10, 6);
+                break;
+            case 5:
+                StoneCoord = new(8, 13);
+                Treasure2Coord = new(5, 4);
+                ExitDoorCoord = new(18, 4);
+                KeyCoord = new(16, 6);
+                TrapCoord = new(16, 9);
+                Trap2Coord = new(13, 5);
+                break;
+            case 6:
+                StoneCoord = new(7, 13);
+                Treasure2Coord = new(9, 5);
+                ExitDoorCoord = new(1, 5);
+                KeyCoord = new(16, 7);
+                TrapCoord = new(16, 10);
+                Trap2Coord = new(11, 6);
+                break;
+            case 7:
+                StoneCoord = new(9, 13);
+                Treasure2Coord = new(7, 4);
+                ExitDoorCoord = new(18, 4);
+                KeyCoord = new(15, 6);
+                TrapCoord = new(15, 9);
+                Trap2Coord = new(12, 5);
+                break;
+            case 8:
+                StoneCoord = new(8, 13);
+                Treasure2Coord = new(6, 5);
+                ExitDoorCoord = new(1, 5);
+                KeyCoord = new(15, 7);
+                TrapCoord = new(15, 10);
+                Trap2Coord = new(10, 6);
+                break;
+            case 9:
+                StoneCoord = new(7, 13);
+                Treasure2Coord = new(8, 4);
+                ExitDoorCoord = new(18, 4);
+                KeyCoord = new(16, 6);
+                TrapCoord = new(16, 9);
+                Trap2Coord = new(13, 5);
+                break;
+            case 10:
+                StoneCoord = new(8, 13);
+                Treasure2Coord = new(4, 4);
+                ExitDoorCoord = new(18, 4);
+                KeyCoord = new(16, 6);
+                TrapCoord = new(16, 9);
+                Trap2Coord = new(13, 5);
+                break;
         }
-        else
-        {
-            StoneCoord = new(8, 13);
-            WallCoord = new(14, 13);
-            TreasureCoord = new(17, 13);
-            Treasure2Coord = new(8, 4);
-            Treasure3Coord = new(17, 13);
-            Treasure4Coord = new(17, 13);
-            ExitDoorCoord = new(18, 4);
-            KeyCoord = new(16, 6);
-            TrapCoord = new(16, 9);
-            Trap2Coord = new(13, 5);
-            HasTrap2 = true;
-            Trap2.Configure(Trap2Coord);
-            grid.SetTile(Trap2Coord.X, Trap2Coord.Y, TileType.SolidWall);
-        }
+
+        Trap2.Configure(Trap2Coord);
+        grid.SetTile(Trap2Coord.X, Trap2Coord.Y, TileType.SolidWall);
 
         Treasure.Configure(TreasureCoord);
         Treasure2.Configure(Treasure2Coord);
@@ -188,7 +255,7 @@ public sealed class PuzzleManager
         grid.SetTile(ExitDoorCoord.X, ExitDoorCoord.Y, TileType.ExitDoor);
 
         // 6. Reinicio de variables de estado
-        CurrentChamber = chamberNumber;
+        CurrentChamber = normalized;
         DoorCycleCount = 0;
         HasSecretTreasureReloaded = false;
         IsWallOpen = false;
@@ -250,12 +317,12 @@ public sealed class PuzzleManager
             // Si está abierto, la celda se vuelve transitable (Empty); si está cerrado, vuelve a ser SolidWall
             grid.SetTile(WallCoord.X, WallCoord.Y, IsWallOpen ? TileType.Empty : TileType.SolidWall);
 
-            // Puzle 1 (Recámara 1):
+            // Puzle 1 (presente en todas las recámaras 1 a 10):
             // Requisitos:
             // 1. Tener recogidos los 2 tesoros (Nivel 0 y Nivel 2) y la llave (Nivel 1).
             // 2. Pasar por la losa para abrir y cerrar la puerta del nivel 0 tres (3) veces consecutivas.
             // 3. Activación única: solo se puede hacer una vez, no se repite nuevamente.
-            if (CurrentChamber == 1 && !HasSecretTreasureReloaded)
+            if (!HasSecretTreasureReloaded)
             {
                 bool arePrerequisitesMet = Treasure.IsCollected && Treasure2.IsCollected && Key.IsCollected;
 
@@ -606,7 +673,7 @@ public sealed class PuzzleManager
             }
 
             // 8b. Caída de la momia de Nivel 2 en la trampa abierta
-            if (mummy != null && mummy.IsActive && CurrentChamber == 1)
+            if (mummy != null && mummy.IsActive)
             {
                 float mummyLeft = mummy.Position.X;
                 float mummyRight = mummy.Position.X + Mummy.WIDTH;

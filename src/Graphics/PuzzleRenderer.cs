@@ -26,6 +26,8 @@ public sealed class PuzzleRenderer : IDisposable
     private Rectangle _destRect = new(0, 0, GameConstants.TILE_SIZE, GameConstants.TILE_SIZE);
     private bool _isDisposed;
 
+    public Texture2D KeyTexture => _keyTexture;
+
     public PuzzleRenderer(GraphicsDevice graphicsDevice)
     {
         ArgumentNullException.ThrowIfNull(graphicsDevice);

@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using RetroGamePiramid.Core;
 using RetroGamePiramid.Graphics;
+using RetroGamePiramid.Grid;
 
 namespace RetroGamePiramid.Scenes;
 
@@ -20,8 +21,29 @@ public sealed class TitleMenu
     private bool _prevRight;
     private bool _prevConfirm;
 
-    private const string CHAMBER_1_TEXT = "RECAMARA: < 1 >";
-    private const string CHAMBER_2_TEXT = "RECAMARA: < 2 >";
+    private static readonly string[] ChamberTexts =
+    {
+        "RECAMARA: < 1 >",
+        "RECAMARA: < 1 >",
+        "RECAMARA: < 2 >",
+        "RECAMARA: < 3 >",
+        "RECAMARA: < 4 >",
+        "RECAMARA: < 5 >",
+        "RECAMARA: < 6 >",
+        "RECAMARA: < 7 >",
+        "RECAMARA: < 8 >",
+        "RECAMARA: < 9 >",
+        "RECAMARA: < 10 >"
+    };
+
+    private static readonly string[] PyramidLevelTexts =
+    {
+        "NIVEL PIRAMIDE: 1 (BASE)",
+        "NIVEL PIRAMIDE: 1 (BASE)",
+        "NIVEL PIRAMIDE: 2",
+        "NIVEL PIRAMIDE: 3",
+        "NIVEL PIRAMIDE: 4 (CUSPIDE)"
+    };
 
     public MenuOption SelectedOption
     {
@@ -32,8 +54,10 @@ public sealed class TitleMenu
     public int SelectedChamber
     {
         get => _selectedChamber;
-        set => _selectedChamber = (value == 2) ? 2 : 1;
+        set => _selectedChamber = (value >= 1 && value <= GameConstants.TOTAL_CHAMBERS) ? value : 1;
     }
+
+    public int SelectedPyramidLevel => RoomGrid.GetPyramidLevel(_selectedChamber);
 
     public bool CanContinue { get; set; }
 
@@ -63,7 +87,7 @@ public sealed class TitleMenu
 
     /// <summary>
     /// Actualiza la navegación del menú con detección de flancos para evitar saltos múltiples por frame.
-    /// Permite cambiar de recámara con izquierda/derecha o enter sobre la opción de recámara.
+    /// Permite cambiar de recámara (1 a 10) con izquierda/derecha o enter sobre la opción de recámara.
     /// Devuelve la opción confirmada si el usuario pulsó Enter o Espacio para iniciar o salir.
     /// </summary>
     public bool Update(bool up, bool down, bool left, bool right, bool confirm, out MenuOption selectedAction)
@@ -89,16 +113,23 @@ public sealed class TitleMenu
             NavigateDown();
         }
 
-        if (_selectedOption == MenuOption.SelectChamber && (leftJustPressed || rightJustPressed))
+        if (_selectedOption == MenuOption.SelectChamber)
         {
-            SelectedChamber = SelectedChamber == 1 ? 2 : 1;
+            if (leftJustPressed)
+            {
+                SelectedChamber = _selectedChamber > 1 ? _selectedChamber - 1 : GameConstants.TOTAL_CHAMBERS;
+            }
+            else if (rightJustPressed)
+            {
+                SelectedChamber = _selectedChamber < GameConstants.TOTAL_CHAMBERS ? _selectedChamber + 1 : 1;
+            }
         }
 
         if (confirmJustPressed)
         {
             if (_selectedOption == MenuOption.SelectChamber)
             {
-                SelectedChamber = SelectedChamber == 1 ? 2 : 1;
+                SelectedChamber = _selectedChamber < GameConstants.TOTAL_CHAMBERS ? _selectedChamber + 1 : 1;
                 selectedAction = _selectedOption;
                 return false;
             }
@@ -143,23 +174,27 @@ public sealed class TitleMenu
         font.DrawTextCentered(spriteBatch, "- EXPEDICION EGIPCIA -", GameConstants.VIRTUAL_WIDTH, 66, subtitleColor, scale: 1);
 
         // Borde decorativo
-        font.DrawTextCentered(spriteBatch, "==============================", GameConstants.VIRTUAL_WIDTH, 84, borderGold, scale: 1);
+        font.DrawTextCentered(spriteBatch, "==============================", GameConstants.VIRTUAL_WIDTH, 82, borderGold, scale: 1);
 
         // 2. Opciones del menú (NUEVO, CONTINUAR, RECAMARA, SALIR)
-        int menuStartY = 104;
-        int lineSpacing = 20;
+        int menuStartY = 98;
+        int lineSpacing = 18;
 
         DrawOption(spriteBatch, font, MenuOption.NewGame, "NUEVO", menuStartY, frameCounter);
         DrawOption(spriteBatch, font, MenuOption.Continue, "CONTINUAR", menuStartY + lineSpacing, frameCounter);
-        string chamberText = _selectedChamber == 2 ? CHAMBER_2_TEXT : CHAMBER_1_TEXT;
+        string chamberText = ChamberTexts[_selectedChamber];
         DrawOption(spriteBatch, font, MenuOption.SelectChamber, chamberText, menuStartY + (lineSpacing * 2), frameCounter);
         DrawOption(spriteBatch, font, MenuOption.Exit, "SALIR", menuStartY + (lineSpacing * 3), frameCounter);
+
+        // Indicador del Nivel de la Pirámide correspondiente a la recámara seleccionada
+        string pyramidLevelText = PyramidLevelTexts[SelectedPyramidLevel];
+        font.DrawTextCentered(spriteBatch, pyramidLevelText, GameConstants.VIRTUAL_WIDTH, 174, subtitleColor, scale: 1);
 
         // 3. Indicaciones de control en la parte inferior
         font.DrawTextCentered(spriteBatch, "==============================", GameConstants.VIRTUAL_WIDTH, 188, borderGold, scale: 1);
         Color footerColor = new(170, 140, 95);
         font.DrawTextCentered(spriteBatch, "FLECHAS: ELEGIR   ENTER: CONFIRMAR", GameConstants.VIRTUAL_WIDTH, 202, footerColor, scale: 1);
-        font.DrawTextCentered(spriteBatch, "IZQ/DER o 1/2: CAMBIAR RECAMARA", GameConstants.VIRTUAL_WIDTH, 216, footerColor, scale: 1);
+        font.DrawTextCentered(spriteBatch, "IZQ/DER: CAMBIAR RECAMARA (1-10)", GameConstants.VIRTUAL_WIDTH, 216, footerColor, scale: 1);
     }
 
     private void DrawOption(SpriteBatch spriteBatch, PixelFont font, MenuOption option, string text, int y, int frameCounter)

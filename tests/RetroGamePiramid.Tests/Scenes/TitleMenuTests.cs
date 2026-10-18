@@ -110,23 +110,30 @@ public class TitleMenuTests
         menu.Update(up: false, down: false, left: false, right: false, confirm: false, out _);
         menu.Update(up: false, down: false, left: true, right: false, confirm: false, out _);
         Assert.Equal(1, menu.SelectedChamber);
+
+        // Presionar izquierda desde recámara 1 envuelve a recámara 10
+        menu.Update(up: false, down: false, left: false, right: false, confirm: false, out _);
+        menu.Update(up: false, down: false, left: true, right: false, confirm: false, out _);
+        Assert.Equal(10, menu.SelectedChamber);
+        Assert.Equal(4, menu.SelectedPyramidLevel);
     }
 
     [Fact]
-    public void SelectChamber_ToggleWithConfirm_StaysInMenu()
+    public void SelectChamber_ToggleWithConfirm_StaysInMenu_AndCycles1To10()
     {
         var menu = new TitleMenu();
         menu.NavigateDown(); // Continue
         menu.NavigateDown(); // SelectChamber
         Assert.Equal(1, menu.SelectedChamber);
 
-        // Presionar Confirm sobre la opción de recámara alterna a 2 y retorna false (permanece en menú)
+        // Presionar Confirm sobre la opción de recámara avanza de 1 a 2 y retorna false (permanece en menú)
         bool confirmed = menu.Update(up: false, down: false, left: false, right: false, confirm: true, out var action);
         Assert.False(confirmed);
         Assert.Equal(2, menu.SelectedChamber);
         Assert.Equal(MenuOption.SelectChamber, action);
 
-        // Soltar y presionar Confirm nuevamente alterna a 1
+        // Al llegar a 10 y presionar Confirm envuelve a 1
+        menu.SelectedChamber = 10;
         menu.Update(up: false, down: false, left: false, right: false, confirm: false, out _);
         confirmed = menu.Update(up: false, down: false, left: false, right: false, confirm: true, out action);
         Assert.False(confirmed);
@@ -134,16 +141,34 @@ public class TitleMenuTests
     }
 
     [Fact]
-    public void SelectedChamber_Property_ClampsTo1Or2()
+    public void SelectedChamber_Property_ClampsTo1Through10_AndMapsPyramidLevels()
     {
         var menu = new TitleMenu();
-        menu.SelectedChamber = 2;
-        Assert.Equal(2, menu.SelectedChamber);
+        for (int c = 1; c <= 10; c++)
+        {
+            menu.SelectedChamber = c;
+            Assert.Equal(c, menu.SelectedChamber);
+        }
+
+        menu.SelectedChamber = 1;
+        Assert.Equal(1, menu.SelectedPyramidLevel);
+        menu.SelectedChamber = 4;
+        Assert.Equal(1, menu.SelectedPyramidLevel);
+        menu.SelectedChamber = 5;
+        Assert.Equal(2, menu.SelectedPyramidLevel);
+        menu.SelectedChamber = 7;
+        Assert.Equal(2, menu.SelectedPyramidLevel);
+        menu.SelectedChamber = 8;
+        Assert.Equal(3, menu.SelectedPyramidLevel);
+        menu.SelectedChamber = 9;
+        Assert.Equal(3, menu.SelectedPyramidLevel);
+        menu.SelectedChamber = 10;
+        Assert.Equal(4, menu.SelectedPyramidLevel);
 
         menu.SelectedChamber = 99;
         Assert.Equal(1, menu.SelectedChamber);
 
-        menu.SelectedChamber = 1;
+        menu.SelectedChamber = 0;
         Assert.Equal(1, menu.SelectedChamber);
     }
 

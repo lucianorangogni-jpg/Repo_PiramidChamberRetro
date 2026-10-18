@@ -24,4 +24,8 @@ public static class GameConstants
     // Tiempos y mecánicas de gameplay
     public const float STUN_DURATION_SECONDS = 3.5f;
     public const int WHIP_DURATION_FRAMES = 10;
+
+    // Estructura piramidal de 10 recámaras (Nivel 1: 1-4, Nivel 2: 5-7, Nivel 3: 8-9, Nivel 4: 10)
+    public const int TOTAL_CHAMBERS = 10;
+    public const int PYRAMID_LEVELS = 4;
 }

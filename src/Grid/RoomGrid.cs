@@ -10,13 +10,45 @@ namespace RetroGamePiramid.Grid;
 /// </summary>
 public sealed class RoomGrid
 {
+    private static readonly string[] ChamberNames =
+    [
+        "Recamara 1",
+        "Recamara 2",
+        "Recamara 3",
+        "Recamara 4",
+        "Recamara 5",
+        "Recamara 6",
+        "Recamara 7",
+        "Recamara 8",
+        "Recamara 9",
+        "Recamara 10"
+    ];
+
     private readonly TileType[] _tiles = new TileType[GameConstants.GRID_COLUMNS * GameConstants.GRID_ROWS];
     private readonly List<PlatformInfo> _platforms = new(4);
 
     public int Columns => GameConstants.GRID_COLUMNS;
     public int Rows => GameConstants.GRID_ROWS;
+    public int CurrentChamber { get; private set; } = 1;
+    public int PyramidLevel => GetPyramidLevel(CurrentChamber);
     public string RoomName { get; private set; } = "Recamara 1";
     public IReadOnlyList<PlatformInfo> Platforms => _platforms;
+
+    /// <summary>
+    /// Devuelve el nivel de la pirámide (1 a 4) al que pertenece una recámara (1 a 10):
+    /// - Nivel 1 (Base): Recámaras 1, 2, 3, 4
+    /// - Nivel 2: Recámaras 5, 6, 7
+    /// - Nivel 3: Recámaras 8, 9
+    /// - Nivel 4 (Cúspide): Recámara 10
+    /// </summary>
+    public static int GetPyramidLevel(int chamberNumber) => chamberNumber switch
+    {
+        >= 1 and <= 4 => 1,
+        >= 5 and <= 7 => 2,
+        8 or 9 => 3,
+        10 => 4,
+        _ => 1
+    };
 
     public static int GetIndex(int x, int y) => y * GameConstants.GRID_COLUMNS + x;
 
@@ -128,18 +160,94 @@ public sealed class RoomGrid
     }
 
     /// <summary>
-    /// Configura una cámara por su número ordinal (1: Recamara 1, 2: Recamara 2).
+    /// Configura una recámara por su número ordinal (1 a 10) dentro de la estructura piramidal.
     /// </summary>
     public void LoadChamber(int chamberNumber)
     {
+        int normalized = (chamberNumber >= 1 && chamberNumber <= GameConstants.TOTAL_CHAMBERS) ? chamberNumber : 1;
+        CurrentChamber = normalized;
         Clear(TileType.Empty);
-        if (chamberNumber == 2)
+
+        switch (normalized)
         {
-            LoadChamber2();
-        }
-        else
-        {
-            LoadChamber1();
+            case 1:
+                LoadChamber1();
+                break;
+            case 2:
+                LoadChamber2();
+                break;
+            case 3:
+                LoadChamberVariant(
+                    chamberNumber: 3,
+                    level1Row: 9, level2Row: 5,
+                    ladder1Col: 4, ladder2Col: 9,
+                    doorOnRight: true,
+                    stoneCol: 7,
+                    level1GapColA: 11, level1GapColB: 13);
+                break;
+            case 4:
+                LoadChamberVariant(
+                    chamberNumber: 4,
+                    level1Row: 10, level2Row: 6,
+                    ladder1Col: 5, ladder2Col: 13,
+                    doorOnRight: false,
+                    stoneCol: 9,
+                    level1GapColA: 11, level1GapColB: -1);
+                break;
+            case 5:
+                LoadChamberVariant(
+                    chamberNumber: 5,
+                    level1Row: 9, level2Row: 5,
+                    ladder1Col: 6, ladder2Col: 10,
+                    doorOnRight: true,
+                    stoneCol: 8,
+                    level1GapColA: 12, level1GapColB: -1);
+                break;
+            case 6:
+                LoadChamberVariant(
+                    chamberNumber: 6,
+                    level1Row: 10, level2Row: 6,
+                    ladder1Col: 4, ladder2Col: 14,
+                    doorOnRight: false,
+                    stoneCol: 7,
+                    level1GapColA: 12, level1GapColB: -1);
+                break;
+            case 7:
+                LoadChamberVariant(
+                    chamberNumber: 7,
+                    level1Row: 9, level2Row: 5,
+                    ladder1Col: 5, ladder2Col: 9,
+                    doorOnRight: true,
+                    stoneCol: 9,
+                    level1GapColA: 11, level1GapColB: -1);
+                break;
+            case 8:
+                LoadChamberVariant(
+                    chamberNumber: 8,
+                    level1Row: 10, level2Row: 6,
+                    ladder1Col: 6, ladder2Col: 13,
+                    doorOnRight: false,
+                    stoneCol: 8,
+                    level1GapColA: 11, level1GapColB: -1);
+                break;
+            case 9:
+                LoadChamberVariant(
+                    chamberNumber: 9,
+                    level1Row: 9, level2Row: 5,
+                    ladder1Col: 4, ladder2Col: 10,
+                    doorOnRight: true,
+                    stoneCol: 7,
+                    level1GapColA: 11, level1GapColB: 13);
+                break;
+            case 10:
+                LoadChamberVariant(
+                    chamberNumber: 10,
+                    level1Row: 9, level2Row: 5,
+                    ladder1Col: 5, ladder2Col: 10,
+                    doorOnRight: true,
+                    stoneCol: 8,
+                    level1GapColA: 11, level1GapColB: 13);
+                break;
         }
     }
 
@@ -148,9 +256,8 @@ public sealed class RoomGrid
     /// </summary>
     public void LoadDefaultRoom() => LoadChamber(1);
 
-    private void LoadChamber1()
+    private void BuildPerimeterWalls()
     {
-        // 1. Paredes perimetrales exteriores (bordes indestructibles de la cámara)
         for (int x = 0; x < GameConstants.GRID_COLUMNS; x++)
         {
             SetTile(x, 0, TileType.SolidWall); // Techo
@@ -162,6 +269,12 @@ public sealed class RoomGrid
             SetTile(0, y, TileType.SolidWall); // Pared izquierda
             SetTile(GameConstants.GRID_COLUMNS - 1, y, TileType.SolidWall); // Pared derecha
         }
+    }
+
+    private void LoadChamber1()
+    {
+        // 1. Paredes perimetrales exteriores (bordes indestructibles de la cámara)
+        BuildPerimeterWalls();
 
         // 2. Plataforma intermedia Nivel 1 (fila 9)
         // Sección 1: columnas 2 a 10
@@ -218,7 +331,7 @@ public sealed class RoomGrid
         SetTile(18, 4, TileType.ExitDoor);
 
         // 8. Registro de plataformas de la recámara (distinción por pantalla)
-        RoomName = "Recamara 1";
+        RoomName = ChamberNames[0];
         _platforms.Clear();
         _platforms.Add(new PlatformInfo(0, GameConstants.GRID_ROWS - 1, 1, GameConstants.GRID_COLUMNS - 2, "Plataforma Nivel 0"));
         _platforms.Add(new PlatformInfo(1, 9, 2, 17, "Plataforma Nivel 1"));
@@ -227,22 +340,13 @@ public sealed class RoomGrid
 
     private void LoadChamber2()
     {
-        // Paredes perimetrales exteriores
-        for (int x = 0; x < GameConstants.GRID_COLUMNS; x++)
-        {
-            SetTile(x, 0, TileType.SolidWall);
-            SetTile(x, GameConstants.GRID_ROWS - 1, TileType.SolidWall);
-        }
+        BuildPerimeterWalls();
 
-        for (int y = 0; y < GameConstants.GRID_ROWS; y++)
+        // Plataforma intermedia Nivel 1 (fila 10, columnas 2 a 17 con foso en columna 12)
+        for (int x = 2; x <= 17; x++)
         {
-            SetTile(0, y, TileType.SolidWall);
-            SetTile(GameConstants.GRID_COLUMNS - 1, y, TileType.SolidWall);
-        }
-
-        // Plataforma intermedia Nivel 1 (fila 10, columnas 3 a 17)
-        for (int x = 3; x <= 17; x++)
-        {
+            if (x == 12)
+                continue;
             SetTile(x, 10, TileType.SolidWall);
         }
 
@@ -253,6 +357,7 @@ public sealed class RoomGrid
         }
 
         // Plataforma superior Nivel 2 (fila 6)
+        // Descansillo de puerta a la izquierda: columnas 1 y 2
         SetTile(1, 6, TileType.SolidWall);
         SetTile(2, 6, TileType.SolidWall);
         // Columna 3 es hueco de salto
@@ -261,21 +366,98 @@ public sealed class RoomGrid
             SetTile(x, 6, TileType.SolidWall);
         }
 
-        // Escalera 2: columna 12, filas 6 a 10
+        // Escalera 2: columna 13, filas 6 a 10
         for (int y = 6; y <= 10; y++)
         {
-            SetTile(12, y, TileType.Ladder);
+            SetTile(13, y, TileType.Ladder);
         }
+
+        // Losa de activación en (8, 13)
+        SetTile(8, 13, TileType.PressurePlate);
 
         // Puerta de salida en (1, 5)
         SetTile(1, 5, TileType.ExitDoor);
 
         // Registro de plataformas de Recámara 2
-        RoomName = "Recamara 2";
+        RoomName = ChamberNames[1];
         _platforms.Clear();
         _platforms.Add(new PlatformInfo(0, GameConstants.GRID_ROWS - 1, 1, GameConstants.GRID_COLUMNS - 2, "Plataforma Nivel 0"));
-        _platforms.Add(new PlatformInfo(1, 10, 3, 17, "Plataforma Nivel 1"));
+        _platforms.Add(new PlatformInfo(1, 10, 2, 17, "Plataforma Nivel 1"));
         _platforms.Add(new PlatformInfo(2, 6, 1, 17, "Plataforma Nivel 2"));
+    }
+
+    private void LoadChamberVariant(
+        int chamberNumber,
+        int level1Row,
+        int level2Row,
+        int ladder1Col,
+        int ladder2Col,
+        bool doorOnRight,
+        int stoneCol,
+        int level1GapColA,
+        int level1GapColB)
+    {
+        BuildPerimeterWalls();
+
+        // 1. Plataforma intermedia Nivel 1 (columnas 2 a 17 con fosos intermedios configurables)
+        for (int x = 2; x <= 17; x++)
+        {
+            if (x == level1GapColA || x == level1GapColB)
+                continue;
+            SetTile(x, level1Row, TileType.SolidWall);
+        }
+
+        // 2. Escalera 1: conecta el suelo (fila 13) con Nivel 1
+        for (int y = level1Row; y <= 13; y++)
+        {
+            SetTile(ladder1Col, y, TileType.Ladder);
+        }
+
+        // 3. Plataforma superior Nivel 2
+        int level2MinCol;
+        int level2MaxCol;
+        if (doorOnRight)
+        {
+            // Plataforma principal: columnas 2 a 15, hueco en 16, descansillo de puerta en 17 y 18
+            for (int x = 2; x <= 15; x++)
+            {
+                SetTile(x, level2Row, TileType.SolidWall);
+            }
+            SetTile(17, level2Row, TileType.SolidWall);
+            SetTile(18, level2Row, TileType.SolidWall);
+            SetTile(18, level2Row - 1, TileType.ExitDoor);
+            level2MinCol = 2;
+            level2MaxCol = 18;
+        }
+        else
+        {
+            // Descansillo de puerta a la izquierda en 1 y 2, hueco en 3, plataforma principal de 4 a 17
+            SetTile(1, level2Row, TileType.SolidWall);
+            SetTile(2, level2Row, TileType.SolidWall);
+            for (int x = 4; x <= 17; x++)
+            {
+                SetTile(x, level2Row, TileType.SolidWall);
+            }
+            SetTile(1, level2Row - 1, TileType.ExitDoor);
+            level2MinCol = 1;
+            level2MaxCol = 17;
+        }
+
+        // 4. Escalera 2: conecta Nivel 1 con Nivel 2
+        for (int y = level2Row; y <= level1Row; y++)
+        {
+            SetTile(ladder2Col, y, TileType.Ladder);
+        }
+
+        // 5. Losa de activación en Nivel 0
+        SetTile(stoneCol, 13, TileType.PressurePlate);
+
+        // 6. Registro de plataformas
+        RoomName = ChamberNames[chamberNumber - 1];
+        _platforms.Clear();
+        _platforms.Add(new PlatformInfo(0, GameConstants.GRID_ROWS - 1, 1, GameConstants.GRID_COLUMNS - 2, "Plataforma Nivel 0"));
+        _platforms.Add(new PlatformInfo(1, level1Row, 2, 17, "Plataforma Nivel 1"));
+        _platforms.Add(new PlatformInfo(2, level2Row, level2MinCol, level2MaxCol, "Plataforma Nivel 2"));
     }
 
     /// <summary>

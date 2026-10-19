@@ -127,22 +127,23 @@ Para el ciclo de vida del desarrollo se definen cuatro roles especializados:
 
 1. **Technical Architect & Game Designer (`tech_architect` / `@architect`):**
    - Interlocutor principal: toma la visión creativa y plantea preguntas clave de diseño (tiempos de salto, buffering, bordes, estados).
-   - Modela la arquitectura de datos, structs, interfaces y máquinas de estados sin sobre-ingeniería.
+   - Modela la arquitectura de datos, structs, interfaces y máquinas de estados sin sobre-ingeniería (skill [`technical-design`](./skills/technical-design/SKILL.md)).
+   - Diseña la progresión de niveles, puzles secuenciales y pistas visuales diegéticas evitando *softlocks* y soportando modo *Blind Playtest* sin spoilers (skill [`level-puzzle-design`](./skills/level-puzzle-design/SKILL.md)).
    - Genera especificaciones atómicas y User Stories técnicas con entradas, salidas, constantes y criterios de aceptación.
 
 2. **Code Developer (`code_developer`):**
    - Responsable de escribir e implementar código C# en MonoGame a partir de las especificaciones del `@architect`.
-   - Implementa módulos, entidades, lógica de salto isométrico y renderizado pixel-perfect.
+   - Implementa módulos, entidades, lógica de salto/plataformas, puzles y renderizado pixel-perfect.
    - Garantiza cero allocations en bucle de juego y verifica la compilación con `dotnet build`.
 
 3. **Code Reviewer (`code_reviewer`):**
-   - Audita los cambios de código antes de su integración definitiva.
+   - Audita los cambios de código antes de su integración definitiva (skill [`code-review`](./skills/code-review/SKILL.md)).
    - Verifica el cumplimiento estricto de las reglas de rendimiento (detección de `new`, LINQ, boxing en `Update`/`Draw`).
    - Emite veredicto: `APROBADO`, `APROBADO CON SUGERENCIAS` o `RECHAZADO`.
 
 4. **QA Tester (`qa_tester`):**
-   - Verifica compilaciones (`dotnet build`) con cero advertencias y errores.
-   - Crea y ejecuta pruebas automatizadas unitarias y de integración (`dotnet test`) basadas en los criterios de aceptación del `@architect` para validar la lógica desacoplada (matemáticas de salto, rejilla, cambio de color de cubos, límites, máquinas de estados).
+   - Verifica compilaciones (`dotnet build`) con cero advertencias y errores (skill [`qa-testing`](./skills/qa-testing/SKILL.md)).
+   - Crea y ejecuta pruebas automatizadas unitarias y de integración (`dotnet test`) basadas en los criterios de aceptación del `@architect` para validar la lógica desacoplada (matemáticas de salto, rejilla, puzles, límites, máquinas de estados).
 
 ### Flujo de Trabajo Estándar:
 ```mermaid

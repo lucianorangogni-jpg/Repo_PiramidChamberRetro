@@ -71,8 +71,11 @@ public sealed class PuzzleManager
     public int DoorCycleCount { get; private set; }
     public bool HasSecretTreasureReloaded { get; private set; }
     public int Chamber2Puzzle1Stage { get; private set; }
+    public bool Chamber3KeyCollectedFirst { get; private set; }
+    public int Chamber4MummyJumpCount { get; private set; }
     public bool HasJumpedOverLevel1Mummy { get; private set; }
     public bool HasJumpedOverLevel2Mummy { get; private set; }
+    public int Level2MummyJumpCount { get; private set; }
     private bool _wasJumpingOverMummy2;
     public int Score { get; private set; }
     public int NotificationTimer { get; private set; }
@@ -135,6 +138,7 @@ public sealed class PuzzleManager
     public void RegisterLevel1MummyJump()
     {
         HasJumpedOverLevel1Mummy = true;
+        Chamber4MummyJumpCount++;
         if (CurrentChamber == 2 && Chamber2Puzzle1Stage == 2 && Treasure.IsCollected && Key.IsCollected)
         {
             Chamber2Puzzle1Stage = 3;
@@ -143,16 +147,41 @@ public sealed class PuzzleManager
 
     public void RegisterLevel2MummyJump()
     {
+        Chamber4MummyJumpCount++;
         if (CurrentChamber == 2)
         {
             if (HasSecretTreasureReloaded && IsTreasure3Spawned)
             {
                 HasJumpedOverLevel2Mummy = true;
+                Level2MummyJumpCount++;
+            }
+        }
+        else if (CurrentChamber == 3)
+        {
+            if (Treasure2.IsCollected)
+            {
+                Level2MummyJumpCount++;
+                if (Level2MummyJumpCount >= 3)
+                {
+                    HasJumpedOverLevel2Mummy = true;
+                }
+            }
+        }
+        else if (CurrentChamber == 4)
+        {
+            if (Key.IsCollected)
+            {
+                Level2MummyJumpCount++;
+                if (Level2MummyJumpCount >= 2)
+                {
+                    HasJumpedOverLevel2Mummy = true;
+                }
             }
         }
         else
         {
             HasJumpedOverLevel2Mummy = true;
+            Level2MummyJumpCount++;
         }
     }
 
@@ -287,8 +316,11 @@ public sealed class PuzzleManager
         DoorCycleCount = 0;
         HasSecretTreasureReloaded = false;
         Chamber2Puzzle1Stage = 0;
+        Chamber3KeyCollectedFirst = false;
+        Chamber4MummyJumpCount = 0;
         HasJumpedOverLevel1Mummy = false;
         HasJumpedOverLevel2Mummy = false;
+        Level2MummyJumpCount = 0;
         _wasJumpingOverMummy2 = false;
         IsWallOpen = false;
         WasPlayerOnStone = false;
@@ -351,14 +383,26 @@ public sealed class PuzzleManager
 
             // Puzle 1 (Nivel 0):
             // - Recámara 2: 1) Tesoro de Nivel 0, 2) Llave, 3) Saltar momia de Nivel 1, 4) Abrir y cerrar puerta 2 veces.
-            // - Resto de recámaras (1, 3..10): Tener los 2 tesoros y la llave, y abrir y cerrar puerta 3 veces.
+            // - Recámara 3: 1) Llave primero, 2) Ambos cofres de tesoro, 3) Abrir y cerrar puerta 4 veces.
+            // - Recámara 4: Ambos cofres + Llave + 2 saltos sobre momia (cualquier orden) -> Abrir y cerrar puerta 1 vez.
+            // - Resto de recámaras (1, 5..10): Tener los 2 tesoros y la llave, y abrir y cerrar puerta 3 veces.
             if (!HasSecretTreasureReloaded)
             {
-                bool arePrerequisitesMet = CurrentChamber == 2
-                    ? (Chamber2Puzzle1Stage == 3 && Treasure.IsCollected && Key.IsCollected && HasJumpedOverLevel1Mummy)
-                    : (Treasure.IsCollected && Treasure2.IsCollected && Key.IsCollected);
+                bool arePrerequisitesMet = CurrentChamber switch
+                {
+                    2 => Chamber2Puzzle1Stage == 3 && Treasure.IsCollected && Key.IsCollected && HasJumpedOverLevel1Mummy,
+                    3 => Chamber3KeyCollectedFirst && Key.IsCollected && Treasure.IsCollected && Treasure2.IsCollected,
+                    4 => Treasure.IsCollected && Treasure2.IsCollected && Key.IsCollected && Chamber4MummyJumpCount >= 2,
+                    _ => Treasure.IsCollected && Treasure2.IsCollected && Key.IsCollected
+                };
 
-                int requiredCycles = CurrentChamber == 2 ? 2 : 3;
+                int requiredCycles = CurrentChamber switch
+                {
+                    2 => 2,
+                    3 => 4,
+                    4 => 1,
+                    _ => 3
+                };
 
                 if (!IsWallOpen)
                 {
@@ -526,6 +570,12 @@ public sealed class PuzzleManager
                 if (CurrentChamber == 2 && Chamber2Puzzle1Stage == 1 && Treasure.IsCollected)
                 {
                     Chamber2Puzzle1Stage = 2;
+                }
+
+                // En Recámara 3, el paso 1 del Puzle 1 es agarrar la llave antes de recoger los dos cofres
+                if (CurrentChamber == 3 && !Treasure.IsCollected && !Treasure2.IsCollected)
+                {
+                    Chamber3KeyCollectedFirst = true;
                 }
             }
         }
@@ -761,9 +811,15 @@ public sealed class PuzzleManager
                 {
                     IsMummy2FallingInTrap = false;
 
-                    bool isValidFall = CurrentChamber != 2 ||
-                                       (HasSecretTreasureReloaded && IsTreasure3Spawned && HasJumpedOverLevel2Mummy);
+                    bool isValidFall = CurrentChamber switch
+                    {
+                        2 => HasSecretTreasureReloaded && IsTreasure3Spawned && HasJumpedOverLevel2Mummy,
+                        3 => Treasure2.IsCollected && Level2MummyJumpCount >= 3,
+                        4 => Key.IsCollected && Level2MummyJumpCount >= 2,
+                        _ => true
+                    };
                     HasJumpedOverLevel2Mummy = false;
+                    Level2MummyJumpCount = 0;
 
                     if (!isValidFall)
                     {
@@ -772,7 +828,13 @@ public sealed class PuzzleManager
                     else
                     {
                         Mummy2TrapFallCount++;
-                        int requiredFalls = CurrentChamber == 2 ? 2 : 3;
+                        int requiredFalls = CurrentChamber switch
+                        {
+                            2 => 2,
+                            3 => 1,
+                            4 => 2,
+                            _ => 3
+                        };
 
                         if (Mummy2TrapFallCount < requiredFalls)
                         {

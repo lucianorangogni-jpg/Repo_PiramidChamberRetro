@@ -1441,4 +1441,226 @@ public class PuzzleManagerTests
         Assert.False(mummyLevel2.IsActive);
         Assert.True(puzzle.IsTreasure4Spawned);
     }
+
+    [Fact]
+    public void Chamber3_Puzzle1_RequiresKeyFirst_ThenBothChests_Then4DoorCycles()
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(3);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, 3);
+        var player = new Player(puzzle.StoneCoord);
+
+        // 1. Recoger primero la llave (antes de ambos cofres)
+        player.SetPosition(puzzle.KeyCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.KeyCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        Assert.True(puzzle.Chamber3KeyCollectedFirst);
+
+        // 2. Recoger ambos cofres
+        player.SetPosition(puzzle.Treasure2Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure2Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player); // Abre puerta
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        Assert.True(puzzle.Treasure.IsCollected);
+        Assert.True(puzzle.Treasure2.IsCollected);
+
+        // 3. Cerrar la puerta que estaba abierta (ciclo 1) y hacer 3 ciclos más = 4 ciclos
+        player.SetPosition(10 * GameConstants.TILE_SIZE, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        for (int i = 0; i < 7; i++)
+        {
+            player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+            player.SetPosition(10 * GameConstants.TILE_SIZE, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+        }
+
+        Assert.True(puzzle.HasSecretTreasureReloaded);
+        Assert.False(puzzle.Treasure.IsCollected);
+    }
+
+    [Fact]
+    public void Chamber3_Puzzle2_Requires1JumpOnLevel1_ThenFall_Then3JumpsOnLevel0()
+    {
+        var mummy = new Mummy(
+            spawnX: 2f * GameConstants.TILE_SIZE,
+            spawnY: 8f * GameConstants.TILE_SIZE,
+            minX: 2f * GameConstants.TILE_SIZE,
+            maxX: 11f * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            initialFacing: Direction.Right,
+            initiallyAwake: true,
+            initiallyActive: true,
+            requiredJumpOvers: 1,
+            requiredLevel0JumpOvers: 3);
+
+        Assert.True(mummy.RegisterJumpOver());
+        Assert.True(mummy.IsChasing);
+
+        mummy.LandOnLevel0();
+        Assert.True(mummy.HasReachedLevel0);
+        Assert.False(mummy.IsPuzzleCompleted);
+
+        mummy.RegisterJumpOver();
+        mummy.RegisterJumpOver();
+        Assert.False(mummy.IsPuzzleCompleted);
+
+        mummy.RegisterJumpOver();
+        Assert.True(mummy.IsPuzzleCompleted);
+    }
+
+    [Fact]
+    public void Chamber3_Puzzle3_RequiresTreasure2_Then3JumpsOverLevel2Mummy_Then1TrapFall()
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(3);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, 3);
+        var player = new Player(puzzle.StoneCoord);
+        var mummyLevel2 = new Mummy(
+            spawnX: 14f * GameConstants.TILE_SIZE,
+            spawnY: 4f * GameConstants.TILE_SIZE,
+            minX: 2f * GameConstants.TILE_SIZE,
+            maxX: 15f * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            initialFacing: Direction.Right,
+            initiallyAwake: true,
+            initiallyActive: true);
+
+        // Recoger Treasure (Nivel 0) y Treasure2 (Nivel 2)
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+        player.SetPosition(puzzle.Treasure2Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure2Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+        Assert.True(puzzle.Treasure2.IsCollected);
+
+        // Saltar 3 veces sobre la momia de Nivel 2
+        puzzle.RegisterLevel2MummyJump();
+        puzzle.RegisterLevel2MummyJump();
+        puzzle.RegisterLevel2MummyJump();
+        Assert.Equal(3, puzzle.Level2MummyJumpCount);
+        Assert.True(puzzle.HasJumpedOverLevel2Mummy);
+
+        // Hacerla caer 1 sola vez por la trampa de Nivel 2
+        puzzle.Trap2.Open();
+        grid.SetTile(puzzle.Trap2Coord.X, puzzle.Trap2Coord.Y, TileType.Empty);
+        mummyLevel2.SetPosition(puzzle.Trap2Coord.X * GameConstants.TILE_SIZE + 2f, 4f * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+        mummyLevel2.SetPosition(puzzle.Trap2Coord.X * GameConstants.TILE_SIZE + 2f, 13f * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+
+        Assert.Equal(1, puzzle.Mummy2TrapFallCount);
+        Assert.False(mummyLevel2.IsActive);
+        Assert.True(puzzle.IsTreasure4Spawned);
+    }
+
+    [Fact]
+    public void Chamber4_Puzzle1_RequiresBothChestsKeyAnd2MummyJumps_Then1DoorCycle()
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(4);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, 4);
+        var player = new Player(puzzle.StoneCoord);
+
+        puzzle.Update(grid, player); // Abre puerta
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.Treasure2Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure2Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.KeyCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.KeyCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+
+        puzzle.RegisterLevel1MummyJump();
+        puzzle.RegisterLevel1MummyJump();
+        Assert.Equal(2, puzzle.Chamber4MummyJumpCount);
+
+        // Cerrar la puerta (1 ciclo) recarga el tesoro secreto
+        player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+
+        Assert.True(puzzle.HasSecretTreasureReloaded);
+        Assert.False(puzzle.Treasure.IsCollected);
+    }
+
+    [Fact]
+    public void Chamber4_Puzzle2_Requires3JumpsOnLevel1_ThenFall_Then1JumpOnLevel0()
+    {
+        var mummy = new Mummy(
+            spawnX: 2f * GameConstants.TILE_SIZE,
+            spawnY: 9f * GameConstants.TILE_SIZE,
+            minX: 2f * GameConstants.TILE_SIZE,
+            maxX: 11f * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            initialFacing: Direction.Right,
+            initiallyAwake: true,
+            initiallyActive: true,
+            requiredJumpOvers: 3,
+            requiredLevel0JumpOvers: 1);
+
+        Assert.False(mummy.RegisterJumpOver());
+        Assert.False(mummy.RegisterJumpOver());
+        Assert.True(mummy.RegisterJumpOver());
+        Assert.True(mummy.IsChasing);
+
+        mummy.LandOnLevel0();
+        Assert.True(mummy.HasReachedLevel0);
+        Assert.False(mummy.IsPuzzleCompleted);
+
+        mummy.RegisterJumpOver();
+        Assert.True(mummy.IsPuzzleCompleted);
+    }
+
+    [Fact]
+    public void Chamber4_Puzzle3_RequiresKey_Then2JumpsOverLevel2MummyAndTrapFall_Repeated2Times()
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(4);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, 4);
+        var player = new Player(puzzle.StoneCoord);
+        var mummyLevel2 = new Mummy(
+            spawnX: 15f * GameConstants.TILE_SIZE,
+            spawnY: 5f * GameConstants.TILE_SIZE,
+            minX: 4f * GameConstants.TILE_SIZE,
+            maxX: 18f * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            initialFacing: Direction.Right,
+            initiallyAwake: true,
+            initiallyActive: true);
+
+        // Recoger Treasure y Llave
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+        player.SetPosition(puzzle.KeyCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.KeyCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+        Assert.True(puzzle.HasKey);
+
+        // Repetición 1: 2 saltos sobre la momia de Nivel 2 + 1 caída en trampa
+        puzzle.RegisterLevel2MummyJump();
+        puzzle.RegisterLevel2MummyJump();
+        Assert.Equal(2, puzzle.Level2MummyJumpCount);
+
+        puzzle.Trap2.Open();
+        grid.SetTile(puzzle.Trap2Coord.X, puzzle.Trap2Coord.Y, TileType.Empty);
+        mummyLevel2.SetPosition(puzzle.Trap2Coord.X * GameConstants.TILE_SIZE + 2f, 5f * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+        mummyLevel2.SetPosition(puzzle.Trap2Coord.X * GameConstants.TILE_SIZE + 2f, 13f * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+
+        Assert.Equal(1, puzzle.Mummy2TrapFallCount);
+        Assert.True(mummyLevel2.IsActive);
+
+        // Repetición 2: 2 saltos sobre la momia de Nivel 2 + 2da caída en trampa
+        puzzle.RegisterLevel2MummyJump();
+        puzzle.RegisterLevel2MummyJump();
+        puzzle.Trap2.Open();
+        grid.SetTile(puzzle.Trap2Coord.X, puzzle.Trap2Coord.Y, TileType.Empty);
+        mummyLevel2.SetPosition(puzzle.Trap2Coord.X * GameConstants.TILE_SIZE + 2f, 5f * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+        mummyLevel2.SetPosition(puzzle.Trap2Coord.X * GameConstants.TILE_SIZE + 2f, 13f * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+
+        Assert.Equal(2, puzzle.Mummy2TrapFallCount);
+        Assert.False(mummyLevel2.IsActive);
+        Assert.True(puzzle.IsTreasure4Spawned);
+    }
 }

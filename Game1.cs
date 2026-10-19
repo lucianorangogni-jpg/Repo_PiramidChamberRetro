@@ -467,8 +467,18 @@ public class Game1 : Game
                 initialFacing: Direction.Right);
 
             int level1GapCol = _currentChamber is 2 or 6 ? 12 : 11;
-            int reqJumpsLevel1 = _currentChamber == 2 ? 2 : Mummy.REQUIRED_JUMP_OVERS;
-            int reqJumpsLevel0 = _currentChamber == 2 ? 2 : 0;
+            int reqJumpsLevel1 = _currentChamber switch
+            {
+                2 => 2,
+                4 => 3,
+                _ => Mummy.REQUIRED_JUMP_OVERS
+            };
+            int reqJumpsLevel0 = _currentChamber switch
+            {
+                2 => 2,
+                4 => 1,
+                _ => 0
+            };
 
             _mummyPlatform1.Configure(
                 spawnX: 2 * GameConstants.TILE_SIZE,
@@ -493,6 +503,9 @@ public class Game1 : Game
                 initialFacing: Direction.Right);
 
             int level1GapCol = _currentChamber == 5 ? 12 : 11;
+            int reqJumpsLevel1 = _currentChamber == 3 ? 1 : Mummy.REQUIRED_JUMP_OVERS;
+            int reqJumpsLevel0 = _currentChamber == 3 ? 3 : 0;
+
             _mummyPlatform1.Configure(
                 spawnX: 2 * GameConstants.TILE_SIZE,
                 spawnY: 8 * GameConstants.TILE_SIZE,
@@ -500,7 +513,9 @@ public class Game1 : Game
                 maxX: level1GapCol * GameConstants.TILE_SIZE - Mummy.WIDTH,
                 initialFacing: Direction.Right,
                 initiallyAwake: false,
-                initiallyActive: true);
+                initiallyActive: true,
+                requiredJumpOvers: reqJumpsLevel1,
+                requiredLevel0JumpOvers: reqJumpsLevel0);
         }
 
         _player.SetPosition(

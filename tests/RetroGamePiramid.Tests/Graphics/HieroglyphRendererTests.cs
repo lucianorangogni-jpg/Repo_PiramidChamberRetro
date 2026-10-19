@@ -355,4 +355,109 @@ public class HieroglyphRendererTests
         // 4. Nuevo Cofre Sagrado en x=247, y=20
         Assert.NotEqual(Color.Transparent, pixels[20 * width + 247]);
     }
+
+    [Fact]
+    public void GenerateMuralChamber3Pixels_ContainsKeyFirstBothChestsAndFourDoors()
+    {
+        const int width = HieroglyphRenderer.MURAL_WIDTH;
+        Color[] pixels = HieroglyphRenderer.GenerateMuralChamber3Pixels(width, HieroglyphRenderer.MURAL_HEIGHT);
+
+        // 1. Llave en x=87, y=20
+        Assert.NotEqual(Color.Transparent, pixels[20 * width + 87]);
+        // 2. Cuatro marcas de puertas (IIII) en x=162, 170, 178, 186, y=14
+        Assert.NotEqual(Color.Transparent, pixels[14 * width + 162]);
+        Assert.NotEqual(Color.Transparent, pixels[14 * width + 170]);
+        Assert.NotEqual(Color.Transparent, pixels[14 * width + 178]);
+        Assert.NotEqual(Color.Transparent, pixels[14 * width + 186]);
+    }
+
+    [Fact]
+    public void GenerateMuralLevel1Chamber3Pixels_Contains1xJumpFallAnd3xJumpSequence()
+    {
+        const int width = HieroglyphRenderer.MURAL_LEVEL1_WIDTH;
+        Color[] pixels = HieroglyphRenderer.GenerateMuralLevel1Chamber3Pixels(
+            width,
+            HieroglyphRenderer.MURAL_LEVEL1_HEIGHT);
+
+        // 1. Marca de 1 salto (I) en Nivel 1 (x=40, y=6)
+        Assert.NotEqual(Color.Transparent, pixels[6 * width + 40]);
+
+        // 2. Marcas de 3 saltos (III) en Nivel 0 (x=178, 182, 186, y=6)
+        Assert.NotEqual(Color.Transparent, pixels[6 * width + 178]);
+        Assert.NotEqual(Color.Transparent, pixels[6 * width + 182]);
+        Assert.NotEqual(Color.Transparent, pixels[6 * width + 186]);
+    }
+
+    [Fact]
+    public void GenerateMuralLevel2Chamber3Pixels_ContainsChest3xJumpAnd1xTrapFallSequence()
+    {
+        const int width = HieroglyphRenderer.MURAL_LEVEL2_WIDTH;
+        Color[] pixels = HieroglyphRenderer.GenerateMuralLevel2Chamber3Pixels(
+            width,
+            HieroglyphRenderer.MURAL_LEVEL2_HEIGHT);
+
+        // 1. Cofre de Nivel 2 en x=124, y=26
+        Assert.NotEqual(Color.Transparent, pixels[26 * width + 124]);
+
+        // 2. Tres marcas de salto (III) sobre la momia de Nivel 2 en x=151, 155, 159, y=8
+        Assert.NotEqual(Color.Transparent, pixels[8 * width + 151]);
+        Assert.NotEqual(Color.Transparent, pixels[8 * width + 155]);
+        Assert.NotEqual(Color.Transparent, pixels[8 * width + 159]);
+
+        // 3. Una sola marca de caída en trampa (I) en x=204, y=10 (las marcas 2 y 3 son transparentes)
+        Assert.NotEqual(Color.Transparent, pixels[10 * width + 204]);
+        Assert.Equal(Color.Transparent, pixels[10 * width + 208]);
+        Assert.Equal(Color.Transparent, pixels[10 * width + 212]);
+    }
+
+    [Fact]
+    public void GenerateMuralChamber4Pixels_ContainsChestsKey2xJumpAndOneDoor()
+    {
+        const int width = HieroglyphRenderer.MURAL_WIDTH;
+        Color[] pixels = HieroglyphRenderer.GenerateMuralChamber4Pixels(width, HieroglyphRenderer.MURAL_HEIGHT);
+
+        // 1. Dos marcas de salto (II) en x=165 y x=169, y=14
+        Assert.NotEqual(Color.Transparent, pixels[14 * width + 165]);
+        Assert.NotEqual(Color.Transparent, pixels[14 * width + 169]);
+        // 2. Una sola marca de puerta (I) en x=189, y=14
+        Assert.NotEqual(Color.Transparent, pixels[14 * width + 189]);
+    }
+
+    [Fact]
+    public void GenerateMuralLevel1Chamber4Pixels_Contains3xJumpFallAnd1xJumpSequence()
+    {
+        const int width = HieroglyphRenderer.MURAL_LEVEL1_WIDTH;
+        Color[] pixels = HieroglyphRenderer.GenerateMuralLevel1Chamber4Pixels(
+            width,
+            HieroglyphRenderer.MURAL_LEVEL1_HEIGHT);
+
+        // 1. Marcas de 3 saltos (III) en Nivel 1 (x=34, 38, 42, y=6)
+        Assert.NotEqual(Color.Transparent, pixels[6 * width + 34]);
+        Assert.NotEqual(Color.Transparent, pixels[6 * width + 38]);
+        Assert.NotEqual(Color.Transparent, pixels[6 * width + 42]);
+
+        // 2. Marca de 1 salto (I) en Nivel 0 (x=142, y=6)
+        Assert.NotEqual(Color.Transparent, pixels[6 * width + 142]);
+    }
+
+    [Fact]
+    public void GenerateMuralLevel2Chamber4Pixels_ContainsKey2xJumpAnd2xTrapFallSequence()
+    {
+        const int width = HieroglyphRenderer.MURAL_LEVEL2_WIDTH;
+        Color[] pixels = HieroglyphRenderer.GenerateMuralLevel2Chamber4Pixels(
+            width,
+            HieroglyphRenderer.MURAL_LEVEL2_HEIGHT);
+
+        // 1. Llave en x=55, y=26
+        Assert.NotEqual(Color.Transparent, pixels[26 * width + 55]);
+
+        // 2. Dos marcas de salto (II) sobre la momia de Nivel 2 en x=93 y x=97, y=8
+        Assert.NotEqual(Color.Transparent, pixels[8 * width + 93]);
+        Assert.NotEqual(Color.Transparent, pixels[8 * width + 97]);
+
+        // 3. Dos marcas de caída en trampa (II) en x=160 y x=164, y=10 (la 3ra en x=168 es transparente)
+        Assert.NotEqual(Color.Transparent, pixels[10 * width + 160]);
+        Assert.NotEqual(Color.Transparent, pixels[10 * width + 164]);
+        Assert.Equal(Color.Transparent, pixels[10 * width + 168]);
+    }
 }

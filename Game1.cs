@@ -28,6 +28,7 @@ public class Game1 : Game
     private HieroglyphRenderer _hieroglyphRenderer = null!;
     private Mummy _mummy = null!;
     private Mummy _mummyPlatform1 = null!;
+    private Mummy _mummyPlatform3 = null!;
     private MummyRenderer _mummyRenderer = null!;
 
     private GameScreen _currentScreen = GameScreen.TitleMenu;
@@ -165,6 +166,16 @@ public class Game1 : Game
             initiallyAwake: false,
             initiallyActive: true);
 
+        // Tercera momia guardiana de la plataforma 3 (activa en Recámaras 5, 6 y 7 del nivel 2 de la pirámide)
+        _mummyPlatform3 = new Mummy(
+            spawnX: 14 * GameConstants.TILE_SIZE,
+            spawnY: 3 * GameConstants.TILE_SIZE,
+            minX: 2 * GameConstants.TILE_SIZE,
+            maxX: 16 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            initialFacing: Direction.Left,
+            initiallyAwake: false,
+            initiallyActive: false);
+
         _mummyRenderer = new MummyRenderer(GraphicsDevice);
     }
 
@@ -192,6 +203,7 @@ public class Game1 : Game
 
         if (_currentScreen == GameScreen.TitleMenu)
         {
+            _titleMenu.IsChamber10Unlocked = _puzzleManager.IsChamber10Unlocked;
             bool up = keyboard.IsKeyDown(Keys.Up) || keyboard.IsKeyDown(Keys.W);
             bool down = keyboard.IsKeyDown(Keys.Down) || keyboard.IsKeyDown(Keys.S);
             bool left = keyboard.IsKeyDown(Keys.Left) || keyboard.IsKeyDown(Keys.A);
@@ -366,7 +378,7 @@ public class Game1 : Game
                 // Muestreo de entrada y actualización del jugador, momias y puzle (cero allocations)
                 PlayerInput input = PlayerInput.FromKeyboard(keyboard);
                 _player.Update(_roomGrid, in input);
-                _puzzleManager.Update(_roomGrid, _player, _mummy);
+                _puzzleManager.Update(_roomGrid, _player, _mummy, _mummyPlatform3);
 
                 // Al tomar la llave se despierta la momia guardiana de la plataforma 1
                 if (_puzzleManager.HasKey && !_mummyPlatform1.IsAwake && _mummyPlatform1.IsActive)
@@ -425,6 +437,7 @@ public class Game1 : Game
 
                 _mummy.Update(_player, _roomGrid);
                 _mummyPlatform1.Update(_player, _roomGrid);
+                _mummyPlatform3.Update(_player, _roomGrid);
 
                 // Cuando se completa el puzle de la momia de plataforma 1 (en Recámara 2 tras caer al Nivel 0 y saltarla 2 veces más), se genera el nuevo tesoro (Treasure 3)
                 if (_mummyPlatform1.IsPuzzleCompleted && !_puzzleManager.IsTreasure3Spawned)
@@ -452,11 +465,126 @@ public class Game1 : Game
     {
         _respawnTimer = 0;
         _wasJumpingOverMummy = false;
-        _currentChamber = (chamberNumber >= 1 && chamberNumber <= GameConstants.TOTAL_CHAMBERS) ? chamberNumber : 1;
+        int normalized = (chamberNumber >= 1 && chamberNumber <= GameConstants.TOTAL_CHAMBERS) ? chamberNumber : 1;
+        bool redirectedFromLockedApex = false;
+        if (normalized == GameConstants.TOTAL_CHAMBERS && !_puzzleManager.IsChamber10Unlocked)
+        {
+            normalized = _puzzleManager.GetFirstIncompleteChamber();
+            redirectedFromLockedApex = true;
+        }
+
+        _currentChamber = normalized;
         _roomGrid.LoadChamber(_currentChamber);
         _puzzleManager.Initialize(_roomGrid, _currentChamber);
+        if (redirectedFromLockedApex)
+        {
+            _puzzleManager.NotifyChamber10Locked();
+        }
 
-        if (_currentChamber is 2 or 4 or 6 or 8)
+        if (_currentChamber is >= 5 and <= 7)
+        {
+            // Nivel 2 de la pirámide (Recámaras 5, 6 y 7): 4 plataformas (filas 14, 11, 8 y 4) y 3 momias activas
+            _mummy.Configure(
+                spawnX: 15 * GameConstants.TILE_SIZE,
+                spawnY: 7 * GameConstants.TILE_SIZE,
+                minX: 2 * GameConstants.TILE_SIZE,
+                maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                initialFacing: Direction.Right);
+
+            int level1GapCol = _currentChamber == 6 ? 12 : 11;
+            if (_currentChamber == 5)
+            {
+                // En Recámara 5, la primera momia patrulla en el Nivel 0 (fila 13, Y = 208)
+                _mummyPlatform1.Configure(
+                    spawnX: 16 * GameConstants.TILE_SIZE,
+                    spawnY: 13 * GameConstants.TILE_SIZE,
+                    minX: 4 * GameConstants.TILE_SIZE,
+                    maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                    initialFacing: Direction.Left,
+                    initiallyAwake: true,
+                    initiallyActive: true);
+            }
+            else
+            {
+                _mummyPlatform1.Configure(
+                    spawnX: 2 * GameConstants.TILE_SIZE,
+                    spawnY: 10 * GameConstants.TILE_SIZE,
+                    minX: 2 * GameConstants.TILE_SIZE,
+                    maxX: level1GapCol * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                    initialFacing: Direction.Right,
+                    initiallyAwake: false,
+                    initiallyActive: true);
+            }
+
+            if (_currentChamber == 6)
+            {
+                _mummyPlatform3.Configure(
+                    spawnX: 15 * GameConstants.TILE_SIZE,
+                    spawnY: 3 * GameConstants.TILE_SIZE,
+                    minX: 4 * GameConstants.TILE_SIZE,
+                    maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                    initialFacing: Direction.Left,
+                    initiallyAwake: true,
+                    initiallyActive: true);
+            }
+            else
+            {
+                _mummyPlatform3.Configure(
+                    spawnX: 14 * GameConstants.TILE_SIZE,
+                    spawnY: 3 * GameConstants.TILE_SIZE,
+                    minX: 2 * GameConstants.TILE_SIZE,
+                    maxX: 16 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                    initialFacing: Direction.Left,
+                    initiallyAwake: true,
+                    initiallyActive: true);
+            }
+        }
+        else if (_currentChamber is 8 or 9)
+        {
+            // Recámaras 8 y 9 (Nivel 3 de la pirámide: 5 plataformas y 3 puertas de tesoros)
+            // Momia de Nivel 2 (piso en fila 8 -> spawnY = 7*16), a la izquierda de Puerta 3 (col 14)
+            _mummy.Configure(
+                spawnX: 11 * GameConstants.TILE_SIZE,
+                spawnY: 7 * GameConstants.TILE_SIZE,
+                minX: 2 * GameConstants.TILE_SIZE,
+                maxX: 14 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                initialFacing: Direction.Left);
+
+            // Momia de Nivel 1 (piso en fila 11 -> spawnY = 10*16), entre Puerta 2 (col 4) y el foso (col 12)
+            _mummyPlatform1.Configure(
+                spawnX: 5 * GameConstants.TILE_SIZE,
+                spawnY: 10 * GameConstants.TILE_SIZE,
+                minX: 5 * GameConstants.TILE_SIZE,
+                maxX: 12 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                initialFacing: Direction.Right,
+                initiallyAwake: false,
+                initiallyActive: true);
+
+            // Momia de Nivel 3 (piso en fila 5 -> spawnY = 4*16)
+            if (_currentChamber == 8)
+            {
+                _mummyPlatform3.Configure(
+                    spawnX: 16 * GameConstants.TILE_SIZE,
+                    spawnY: 4 * GameConstants.TILE_SIZE,
+                    minX: 9 * GameConstants.TILE_SIZE,
+                    maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                    initialFacing: Direction.Left,
+                    initiallyAwake: true,
+                    initiallyActive: true);
+            }
+            else
+            {
+                _mummyPlatform3.Configure(
+                    spawnX: 9 * GameConstants.TILE_SIZE,
+                    spawnY: 4 * GameConstants.TILE_SIZE,
+                    minX: 2 * GameConstants.TILE_SIZE,
+                    maxX: 11 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                    initialFacing: Direction.Left,
+                    initiallyAwake: true,
+                    initiallyActive: true);
+            }
+        }
+        else if (_currentChamber is 2 or 4)
         {
             // Recámaras con Nivel 2 en fila 6 (spawnY = 5*16) y Nivel 1 en fila 10 (spawnY = 9*16)
             _mummy.Configure(
@@ -466,7 +594,7 @@ public class Game1 : Game
                 maxX: 18 * GameConstants.TILE_SIZE - Mummy.WIDTH,
                 initialFacing: Direction.Right);
 
-            int level1GapCol = _currentChamber is 2 or 6 ? 12 : 11;
+            int level1GapCol = _currentChamber == 2 ? 12 : 11;
             int reqJumpsLevel1 = _currentChamber switch
             {
                 2 => 2,
@@ -490,11 +618,20 @@ public class Game1 : Game
                 initiallyActive: true,
                 requiredJumpOvers: reqJumpsLevel1,
                 requiredLevel0JumpOvers: reqJumpsLevel0);
+
+            _mummyPlatform3.Configure(
+                spawnX: 14 * GameConstants.TILE_SIZE,
+                spawnY: 3 * GameConstants.TILE_SIZE,
+                minX: 2 * GameConstants.TILE_SIZE,
+                maxX: 16 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                initialFacing: Direction.Left,
+                initiallyAwake: false,
+                initiallyActive: false);
         }
         else
         {
-            // Recámaras 1, 3, 5, 7, 9, 10 con Nivel 2 en fila 5 (spawnY = 4*16) y Nivel 1 en fila 9 (spawnY = 8*16)
-            int level2GapCol = _currentChamber is 3 or 7 ? 15 : 16;
+            // Recámaras 1, 3, 9, 10 con Nivel 2 en fila 5 (spawnY = 4*16) y Nivel 1 en fila 9 (spawnY = 8*16)
+            int level2GapCol = _currentChamber == 3 ? 15 : 16;
             _mummy.Configure(
                 spawnX: (level2GapCol - 1) * GameConstants.TILE_SIZE,
                 spawnY: 4 * GameConstants.TILE_SIZE,
@@ -502,7 +639,7 @@ public class Game1 : Game
                 maxX: level2GapCol * GameConstants.TILE_SIZE - Mummy.WIDTH,
                 initialFacing: Direction.Right);
 
-            int level1GapCol = _currentChamber == 5 ? 12 : 11;
+            int level1GapCol = 11;
             int reqJumpsLevel1 = _currentChamber == 3 ? 1 : Mummy.REQUIRED_JUMP_OVERS;
             int reqJumpsLevel0 = _currentChamber == 3 ? 3 : 0;
 
@@ -516,6 +653,15 @@ public class Game1 : Game
                 initiallyActive: true,
                 requiredJumpOvers: reqJumpsLevel1,
                 requiredLevel0JumpOvers: reqJumpsLevel0);
+
+            _mummyPlatform3.Configure(
+                spawnX: 14 * GameConstants.TILE_SIZE,
+                spawnY: 3 * GameConstants.TILE_SIZE,
+                minX: 2 * GameConstants.TILE_SIZE,
+                maxX: 16 * GameConstants.TILE_SIZE - Mummy.WIDTH,
+                initialFacing: Direction.Left,
+                initiallyAwake: false,
+                initiallyActive: false);
         }
 
         _player.SetPosition(
@@ -555,6 +701,7 @@ public class Game1 : Game
             // Dibuja a las momias enemigas
             _mummyRenderer.Draw(_spriteBatch, _mummy, _frameCounter);
             _mummyRenderer.Draw(_spriteBatch, _mummyPlatform1, _frameCounter);
+            _mummyRenderer.Draw(_spriteBatch, _mummyPlatform3, _frameCounter);
 
             // Dibuja al arqueólogo con sus animaciones retro y orientación
             _playerRenderer.Draw(_spriteBatch, _player);

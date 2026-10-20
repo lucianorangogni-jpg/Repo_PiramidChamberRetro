@@ -435,12 +435,23 @@ public sealed class Player
         // Comprobación de choque contra techo
         if (CollidesWithSolid(grid, _position.X, targetY))
         {
-            // Interrumpir el ascenso del salto y caer inmediatamente
-            _state = PlayerState.Falling;
-            _verticalVelocity = 0.5f;
-            _fallStartY = _jumpStartY;
-            _fallStartPlatformLevel = grid.GetPlatformLevel(_jumpStartY);
-            return;
+            float ceilingBottomY = ((int)(targetY / GameConstants.TILE_SIZE) + 1) * GameConstants.TILE_SIZE;
+            if (ceilingBottomY <= _jumpStartY - GameConstants.TILE_SIZE &&
+                !CollidesWithSolid(grid, _position.X, ceilingBottomY))
+            {
+                // Si hay al menos 1 celda completa libre sobre la plataforma (ej. Nivel 1 en fila 11 bajo Nivel 2 en fila 8),
+                // limita la altura del salto al borde inferior del techo sin abortar el arco horizontal
+                targetY = ceilingBottomY;
+            }
+            else
+            {
+                // Interrumpir el ascenso del salto y caer inmediatamente
+                _state = PlayerState.Falling;
+                _verticalVelocity = 0.5f;
+                _fallStartY = _jumpStartY;
+                _fallStartPlatformLevel = grid.GetPlatformLevel(_jumpStartY);
+                return;
+            }
         }
 
         _position.Y = targetY;

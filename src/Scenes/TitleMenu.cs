@@ -45,6 +45,8 @@ public sealed class TitleMenu
         "NIVEL PIRAMIDE: 4 (CUSPIDE)"
     };
 
+    public const string TEXT_CHAMBER10_LOCKED = "CUSPIDE BLOQUEADA: COMPLETA PUZZLES 1-9";
+
     public MenuOption SelectedOption
     {
         get => _selectedOption;
@@ -54,12 +56,25 @@ public sealed class TitleMenu
     public int SelectedChamber
     {
         get => _selectedChamber;
-        set => _selectedChamber = (value >= 1 && value <= GameConstants.TOTAL_CHAMBERS) ? value : 1;
+        set
+        {
+            _selectedChamber = (value >= 1 && value <= GameConstants.TOTAL_CHAMBERS) ? value : 1;
+            ShowChamber10LockedWarning = false;
+        }
     }
 
     public int SelectedPyramidLevel => RoomGrid.GetPyramidLevel(_selectedChamber);
 
     public bool CanContinue { get; set; }
+
+    /// <summary>
+    /// La Recámara 10 (Cúspide) solo puede iniciarse si todos los puzles de las Recámaras 1 a 9 fueron completados.
+    /// </summary>
+    public bool IsChamber10Unlocked { get; set; }
+
+    public bool ShowChamber10LockedWarning { get; private set; }
+
+    public bool CanStartSelectedChamber => _selectedChamber < GameConstants.TOTAL_CHAMBERS || IsChamber10Unlocked;
 
     public void NavigateUp()
     {
@@ -71,6 +86,7 @@ public sealed class TitleMenu
             MenuOption.Exit => MenuOption.SelectChamber,
             _ => MenuOption.NewGame
         };
+        ShowChamber10LockedWarning = false;
     }
 
     public void NavigateDown()
@@ -83,6 +99,7 @@ public sealed class TitleMenu
             MenuOption.Exit => MenuOption.NewGame,
             _ => MenuOption.NewGame
         };
+        ShowChamber10LockedWarning = false;
     }
 
     /// <summary>
@@ -107,10 +124,12 @@ public sealed class TitleMenu
         if (upJustPressed)
         {
             NavigateUp();
+            ShowChamber10LockedWarning = false;
         }
         else if (downJustPressed)
         {
             NavigateDown();
+            ShowChamber10LockedWarning = false;
         }
 
         if (_selectedOption == MenuOption.SelectChamber)
@@ -130,6 +149,15 @@ public sealed class TitleMenu
             if (_selectedOption == MenuOption.SelectChamber)
             {
                 SelectedChamber = _selectedChamber < GameConstants.TOTAL_CHAMBERS ? _selectedChamber + 1 : 1;
+                selectedAction = _selectedOption;
+                return false;
+            }
+
+            if ((_selectedOption == MenuOption.NewGame || _selectedOption == MenuOption.Continue) &&
+                _selectedChamber == GameConstants.TOTAL_CHAMBERS &&
+                !IsChamber10Unlocked)
+            {
+                ShowChamber10LockedWarning = true;
                 selectedAction = _selectedOption;
                 return false;
             }
@@ -187,8 +215,16 @@ public sealed class TitleMenu
         DrawOption(spriteBatch, font, MenuOption.Exit, "SALIR", menuStartY + (lineSpacing * 3), frameCounter);
 
         // Indicador del Nivel de la Pirámide correspondiente a la recámara seleccionada
-        string pyramidLevelText = PyramidLevelTexts[SelectedPyramidLevel];
-        font.DrawTextCentered(spriteBatch, pyramidLevelText, GameConstants.VIRTUAL_WIDTH, 174, subtitleColor, scale: 1);
+        if (_selectedChamber == GameConstants.TOTAL_CHAMBERS && !IsChamber10Unlocked)
+        {
+            Color lockedColor = ShowChamber10LockedWarning ? new Color(255, 100, 75) : subtitleColor;
+            font.DrawTextCentered(spriteBatch, TEXT_CHAMBER10_LOCKED, GameConstants.VIRTUAL_WIDTH, 174, lockedColor, scale: 1);
+        }
+        else
+        {
+            string pyramidLevelText = PyramidLevelTexts[SelectedPyramidLevel];
+            font.DrawTextCentered(spriteBatch, pyramidLevelText, GameConstants.VIRTUAL_WIDTH, 174, subtitleColor, scale: 1);
+        }
 
         // 3. Indicaciones de control en la parte inferior
         font.DrawTextCentered(spriteBatch, "==============================", GameConstants.VIRTUAL_WIDTH, 188, borderGold, scale: 1);

@@ -139,6 +139,11 @@ public sealed class Mummy
         JumpOverCount++;
         if (JumpOverCount >= RequiredJumpOvers && !IsChasing)
         {
+            if (_position.Y >= 13f * GameConstants.TILE_SIZE - 4f)
+            {
+                LandOnLevel0(_position.Y);
+                return false;
+            }
             StartChasing();
             return true;
         }

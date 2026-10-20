@@ -42,11 +42,16 @@ public sealed class HieroglyphRenderer : IDisposable
     private readonly Texture2D _muralLevel2Chamber2Texture;
     private readonly Texture2D _muralLevel2Chamber3Texture;
     private readonly Texture2D _muralLevel2Chamber4Texture;
+    private readonly Texture2D _muralLevel3Chamber5Texture;
     private Rectangle _destRect = new(0, MURAL_Y, MURAL_WIDTH, MURAL_HEIGHT);
     private Rectangle _destRectAlt = new(0, MURAL_Y + 8, MURAL_WIDTH, MURAL_HEIGHT);
     private Rectangle _destRectLevel1 = new(0, MURAL_LEVEL1_Y, MURAL_LEVEL1_WIDTH, MURAL_LEVEL1_HEIGHT);
     private Rectangle _destRectLevel1Alt = new(0, MURAL_LEVEL1_Y + 16, MURAL_LEVEL1_WIDTH, MURAL_LEVEL1_HEIGHT);
     private Rectangle _destRectLevel2 = new(0, MURAL_LEVEL2_Y, MURAL_LEVEL2_WIDTH, MURAL_LEVEL2_HEIGHT);
+    private Rectangle _destRectFourPlatLevel3 = new(0, 16, MURAL_LEVEL2_WIDTH, 48);
+    private Rectangle _destRectFourPlatLevel2 = new(0, 72, MURAL_LEVEL2_WIDTH, 56);
+    private Rectangle _destRectFourPlatLevel1 = new(0, 136, MURAL_LEVEL1_WIDTH, 40);
+    private Rectangle _destRectFourPlatLevel0 = new(0, 184, MURAL_WIDTH, 40);
     private bool _isDisposed;
 
     public Texture2D MuralTexture => _muralTexture;
@@ -61,6 +66,7 @@ public sealed class HieroglyphRenderer : IDisposable
     public Texture2D MuralLevel2Chamber2Texture => _muralLevel2Chamber2Texture;
     public Texture2D MuralLevel2Chamber3Texture => _muralLevel2Chamber3Texture;
     public Texture2D MuralLevel2Chamber4Texture => _muralLevel2Chamber4Texture;
+    public Texture2D MuralLevel3Chamber5Texture => _muralLevel3Chamber5Texture;
 
     public HieroglyphRenderer(GraphicsDevice graphicsDevice)
     {
@@ -77,6 +83,7 @@ public sealed class HieroglyphRenderer : IDisposable
         _muralLevel2Chamber2Texture = GenerateMuralLevel2Chamber2Texture(graphicsDevice);
         _muralLevel2Chamber3Texture = GenerateMuralLevel2Chamber3Texture(graphicsDevice);
         _muralLevel2Chamber4Texture = GenerateMuralLevel2Chamber4Texture(graphicsDevice);
+        _muralLevel3Chamber5Texture = GenerateMuralLevel3Chamber5Texture(graphicsDevice);
     }
 
     /// <summary>
@@ -113,9 +120,26 @@ public sealed class HieroglyphRenderer : IDisposable
             _ => _muralLevel2Texture
         };
 
-        spriteBatch.Draw(level2Mural, _destRectLevel2, Color.White);
-        spriteBatch.Draw(level1Mural, isAltLayout ? _destRectLevel1Alt : _destRectLevel1, Color.White);
-        spriteBatch.Draw(level0Mural, isAltLayout ? _destRectAlt : _destRect, Color.White);
+        if (chamberNumber == 5)
+        {
+            // En Recámara 5: mural de Nivel 3 arriba, mural de Nivel 2 en medio, puerta/tesoro en Nivel 1 y momia en Nivel 0
+            spriteBatch.Draw(_muralLevel3Chamber5Texture, _destRectFourPlatLevel3, Color.White);
+            spriteBatch.Draw(level2Mural, _destRectFourPlatLevel2, Color.White);
+            spriteBatch.Draw(level0Mural, _destRectFourPlatLevel1, Color.White);
+            spriteBatch.Draw(level1Mural, _destRectFourPlatLevel0, Color.White);
+        }
+        else if (chamberNumber is 6 or 7 or 8 or 9)
+        {
+            spriteBatch.Draw(level2Mural, _destRectFourPlatLevel2, Color.White);
+            spriteBatch.Draw(level1Mural, _destRectFourPlatLevel1, Color.White);
+            spriteBatch.Draw(level0Mural, _destRectFourPlatLevel0, Color.White);
+        }
+        else
+        {
+            spriteBatch.Draw(level2Mural, _destRectLevel2, Color.White);
+            spriteBatch.Draw(level1Mural, isAltLayout ? _destRectLevel1Alt : _destRectLevel1, Color.White);
+            spriteBatch.Draw(level0Mural, isAltLayout ? _destRectAlt : _destRect, Color.White);
+        }
     }
 
     public void Dispose()
@@ -134,6 +158,7 @@ public sealed class HieroglyphRenderer : IDisposable
             _muralLevel2Chamber2Texture?.Dispose();
             _muralLevel2Chamber3Texture?.Dispose();
             _muralLevel2Chamber4Texture?.Dispose();
+            _muralLevel3Chamber5Texture?.Dispose();
             _isDisposed = true;
         }
     }
@@ -2115,5 +2140,57 @@ public sealed class HieroglyphRenderer : IDisposable
                 SetPixelLevel2(pixels, width, height, mx, y, fadedGold);
             }
         }
+    }
+
+    private static Texture2D GenerateMuralLevel3Chamber5Texture(GraphicsDevice graphicsDevice)
+    {
+        Texture2D texture = new(graphicsDevice, MURAL_LEVEL2_WIDTH, MURAL_LEVEL2_HEIGHT);
+        Color[] pixels = GenerateMuralLevel3Chamber5Pixels(MURAL_LEVEL2_WIDTH, MURAL_LEVEL2_HEIGHT);
+        texture.SetData(pixels);
+        return texture;
+    }
+
+    /// <summary>
+    /// Genera la matriz de píxeles del mural jeroglífico del Nivel 3 para la Recámara 5:
+    /// [Cofre de Nivel 3] -> [Salto 1x sobre Momia de Nivel 3] -> [Caída en Trampa 2x (II)] -> [Nuevo Tesoro ☥].
+    /// </summary>
+    public static Color[] GenerateMuralLevel3Chamber5Pixels(int width, int height)
+    {
+        Color[] pixels = new Color[width * height];
+        Array.Fill(pixels, Color.Transparent);
+
+        Color groove = new(38, 28, 34);
+        Color stone = new(78, 58, 48);
+        Color ochre = new(105, 78, 50);
+        Color fadedGold = new(136, 102, 52);
+        Color radiantGold = new(165, 126, 62);
+        Color turquoise = new(45, 96, 90);
+        Color redOchre = new(115, 48, 38);
+
+        // 1. Cenefa decorativa a la derecha del cuadro de estado HUD (X = 104..282)
+        DrawFriezeLevel2(pixels, width, height, 104, 282, groove, stone, ochre);
+
+        // 2. Glifo 1: Cofre del Nivel 3 en x = 108..120
+        DrawMiniChestLevel2(pixels, width, height, 108, 22, stone, ochre, fadedGold, turquoise, groove);
+
+        // 3. Flecha 1 (->) en x = 128
+        DrawArrowLevel2Glyph(pixels, width, height, 128, 28, redOchre, ochre);
+
+        // 4. Glifo 2: Salto 1x (I) sobre la Momia de Nivel 3 en x = 140..182
+        DrawMummyJump1xBeforeTrapLevel2Glyph(pixels, width, height, 140, 8, stone, ochre, fadedGold, radiantGold, redOchre, groove);
+
+        // 5. Flecha 2 (->) en x = 186
+        DrawArrowLevel2Glyph(pixels, width, height, 186, 28, redOchre, ochre);
+
+        // 6. Glifo 3: Momia cayendo por la trampa de Nivel 3 x2 (II) en x = 198..236
+        DrawMummyFallingTrap2xGlyph(pixels, width, height, 198, 8, stone, ochre, fadedGold, radiantGold, redOchre, groove);
+
+        // 7. Flecha 3 (->) en x = 240
+        DrawArrowLevel2Glyph(pixels, width, height, 240, 28, redOchre, ochre);
+
+        // 8. Glifo 4: Nuevo Tesoro en Plataforma Nivel 3 en x = 250..280
+        DrawRenewedTreasureInChamberGlyph(pixels, width, height, 250, 10, stone, ochre, fadedGold, radiantGold, turquoise, groove);
+
+        return pixels;
     }
 }

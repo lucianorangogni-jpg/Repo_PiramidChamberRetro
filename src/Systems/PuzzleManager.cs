@@ -17,14 +17,21 @@ public sealed class PuzzleManager
     public GridCoord PlayerSpawnCoord { get; private set; } = new(2, 13);
     public GridCoord StoneCoord { get; private set; } = new(8, 13);
     public GridCoord WallCoord { get; private set; } = new(14, 13);
+    public GridCoord Stone2Coord { get; private set; } = new(7, 10);
+    public GridCoord Wall2Coord { get; private set; } = new(4, 10);
+    public GridCoord Stone3Coord { get; private set; } = new(12, 7);
+    public GridCoord Wall3Coord { get; private set; } = new(14, 7);
     public GridCoord TreasureCoord { get; private set; } = new(17, 13);
     public GridCoord Treasure2Coord { get; private set; } = new(8, 4);
     public GridCoord Treasure3Coord { get; private set; } = new(17, 13);
     public GridCoord Treasure4Coord { get; private set; } = new(17, 13);
+    public GridCoord Treasure5Coord { get; private set; } = new(11, 3);
+    public GridCoord Treasure6Coord { get; private set; } = new(11, 3);
     public GridCoord ExitDoorCoord { get; private set; } = new(18, 4);
     public GridCoord KeyCoord { get; private set; } = new(16, 6);
     public GridCoord TrapCoord { get; private set; } = new(16, 9);
     public GridCoord Trap2Coord { get; private set; } = new(13, 5);
+    public GridCoord Trap3Coord { get; private set; } = new(9, 4);
 
     public const string MSG_TREASURE = "!TESORO ENCONTRADO! +1000 PTS";
     public const string MSG_TREASURE_RELOAD = "!TESORO RECARGADO! +1000 PTS";
@@ -39,14 +46,21 @@ public sealed class PuzzleManager
     public const string MSG_DOOR_LOCKED = "!PUERTA CERRADA! NECESITAS LA LLAVE";
     public const string MSG_TRAP = "!TRAMPA! EL PISO SE HA ABIERTO";
     public const string MSG_TRAP2 = "!TRAMPA MORTAL! QUEDAS ATRAPADO";
+    public const string MSG_CHAMBER10_LOCKED = "!CUSPIDE BLOQUEADA! COMPLETA PUZZLES 1-9";
+
+    private readonly bool[] _chamberPuzzlesCompleted = new bool[GameConstants.TOTAL_CHAMBERS + 1];
 
     public Treasure Treasure { get; }
     public Treasure Treasure2 { get; }
     public Treasure Treasure3 { get; }
     public Treasure Treasure4 { get; }
+    public Treasure Treasure5 { get; }
+    public Treasure Treasure6 { get; }
+    public bool HasExtraTreasure { get; private set; }
     public Key Key { get; }
     public FloorTrap Trap { get; }
     public FloorTrap Trap2 { get; }
+    public FloorTrap Trap3 { get; }
     public bool HasKey => Key.IsCollected;
     public bool IsTrapOpen => Trap.IsOpen;
     public bool IsPlayerTrappedInTrap { get; private set; }
@@ -62,8 +76,25 @@ public sealed class PuzzleManager
     public bool IsMummy2FallingInTrap { get; private set; }
     public bool IsTreasure4Spawned { get; private set; }
     public bool IsTreasure4Pending { get; private set; }
+    public bool HasTrap3 { get; private set; }
+    public bool IsTrap3Open => Trap3.IsOpen;
+    public bool IsTrap3Triggered => IsPlayerTrappedInTrap3;
+    public bool IsPlayerTrappedInTrap3 { get; private set; }
+    public bool HasTrap3Eliminated { get; private set; }
+    public int Trap3OpenTimer { get; private set; }
+    public int Mummy3TrapFallCount { get; private set; }
+    public bool IsMummy3FallingInTrap { get; private set; }
+    public bool IsTreasure6Spawned { get; private set; }
+    public bool HasJumpedOverLevel3Mummy { get; private set; }
+    public int Level3MummyJumpCount { get; private set; }
+    private bool _wasJumpingOverMummy3;
     public bool IsWallOpen { get; private set; }
     public bool WasPlayerOnStone { get; private set; }
+    public bool HasMultipleTreasureDoors { get; private set; }
+    public bool IsWall2Open { get; private set; }
+    public bool WasPlayerOnStone2 { get; private set; }
+    public bool IsWall3Open { get; private set; }
+    public bool WasPlayerOnStone3 { get; private set; }
     public bool IsChamberCompleted { get; private set; }
     public bool IsTreasure3Spawned { get; private set; }
     public int CurrentChamber { get; private set; } = 1;
@@ -81,15 +112,104 @@ public sealed class PuzzleManager
     public int NotificationTimer { get; private set; }
     public string NotificationMessage { get; private set; } = "";
 
+    /// <summary>
+    /// Indica si todos los puzles de la recámara actual han sido completados:
+    /// Puzle 1 (recarga secreta), Puzle 2 (momia petrificada), Puzle 3 (momia derrotada en trampa)
+    /// y, en caso de existir trampa en Nivel 3 (Recámara 5), el Puzle de Nivel 3.
+    /// </summary>
+    public bool AreAllChamberPuzzlesCompleted =>
+        HasSecretTreasureReloaded &&
+        IsTreasure3Spawned &&
+        (IsTreasure4Spawned || IsTreasure4Pending) &&
+        (!HasTrap3 || IsTreasure6Spawned);
+
+    /// <summary>
+    /// Indica cuántas recámaras de la 1 a la 9 tienen todos sus puzles completados.
+    /// </summary>
+    public int CompletedChambersCount
+    {
+        get
+        {
+            int count = 0;
+            for (int c = 1; c < GameConstants.TOTAL_CHAMBERS; c++)
+            {
+                if (_chamberPuzzlesCompleted[c])
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+    }
+
+    /// <summary>
+    /// La Recámara 10 (Cúspide) solo se desbloquea cuando se han completado todos los puzles de las Recámaras 1 a 9.
+    /// </summary>
+    public bool IsChamber10Unlocked => CompletedChambersCount == GameConstants.TOTAL_CHAMBERS - 1;
+
+    public bool IsChamberPuzzlesCompleted(int chamberNumber) =>
+        chamberNumber >= 1 && chamberNumber <= GameConstants.TOTAL_CHAMBERS && _chamberPuzzlesCompleted[chamberNumber];
+
+    public void SetChamberPuzzlesCompleted(int chamberNumber, bool completed = true)
+    {
+        if (chamberNumber >= 1 && chamberNumber <= GameConstants.TOTAL_CHAMBERS)
+        {
+            _chamberPuzzlesCompleted[chamberNumber] = completed;
+        }
+    }
+
+    public void ResetChamberPuzzlesProgress()
+    {
+        Array.Clear(_chamberPuzzlesCompleted, 0, _chamberPuzzlesCompleted.Length);
+    }
+
+    public bool CanAccessChamber(int chamberNumber)
+    {
+        if (chamberNumber < 1 || chamberNumber > GameConstants.TOTAL_CHAMBERS)
+            return false;
+        if (chamberNumber == GameConstants.TOTAL_CHAMBERS)
+            return IsChamber10Unlocked;
+        return true;
+    }
+
+    public int GetFirstIncompleteChamber()
+    {
+        for (int c = 1; c < GameConstants.TOTAL_CHAMBERS; c++)
+        {
+            if (!_chamberPuzzlesCompleted[c])
+            {
+                return c;
+            }
+        }
+        return GameConstants.TOTAL_CHAMBERS;
+    }
+
+    public void NotifyChamber10Locked()
+    {
+        NotificationTimer = 180;
+        NotificationMessage = MSG_CHAMBER10_LOCKED;
+    }
+
+    private void UpdateChamberCompletionStatus()
+    {
+        if (CurrentChamber >= 1 && CurrentChamber <= GameConstants.TOTAL_CHAMBERS && AreAllChamberPuzzlesCompleted)
+        {
+            _chamberPuzzlesCompleted[CurrentChamber] = true;
+        }
+    }
+
     public PuzzleManager()
     {
         Treasure = new Treasure(TreasureCoord);
         Treasure2 = new Treasure(Treasure2Coord);
         Treasure3 = new Treasure(Treasure3Coord);
         Treasure4 = new Treasure(Treasure4Coord);
+        Treasure5 = new Treasure(Treasure5Coord);
+        Treasure6 = new Treasure(Treasure6Coord);
         Key = new Key(KeyCoord);
         Trap = new FloorTrap(TrapCoord);
         Trap2 = new FloorTrap(Trap2Coord);
+        Trap3 = new FloorTrap(Trap3Coord);
     }
 
     public void ResetScore() => Score = 0;
@@ -100,6 +220,8 @@ public sealed class PuzzleManager
         Treasure2.Reset();
         Treasure3.Reset();
         Treasure4.Reset();
+        Treasure5.Reset();
+        Treasure6.Reset();
     }
 
     public void SpawnTreasure3(RoomGrid? grid = null)
@@ -113,6 +235,7 @@ public sealed class PuzzleManager
         }
         NotificationTimer = 180;
         NotificationMessage = MSG_TREASURE3_SPAWN;
+        UpdateChamberCompletionStatus();
     }
 
     public void SpawnTreasure4(RoomGrid? grid = null)
@@ -127,6 +250,7 @@ public sealed class PuzzleManager
         }
         NotificationTimer = 180;
         NotificationMessage = MSG_MUMMY_DEFEATED;
+        UpdateChamberCompletionStatus();
     }
 
     public void NotifyMummyChase()
@@ -185,6 +309,24 @@ public sealed class PuzzleManager
         }
     }
 
+    public void RegisterLevel3MummyJump()
+    {
+        if (Treasure5.IsCollected)
+        {
+            HasJumpedOverLevel3Mummy = true;
+            Level3MummyJumpCount++;
+        }
+    }
+
+    public void SpawnTreasure6()
+    {
+        IsTreasure6Spawned = true;
+        Treasure6.Reset();
+        NotificationTimer = 180;
+        NotificationMessage = MSG_MUMMY_DEFEATED;
+        UpdateChamberCompletionStatus();
+    }
+
     /// <summary>
     /// Configura el puzle en la cuadrícula de la recámara (1 a 10).
     /// Crea el dintel de muro impenetrable en fila 10 a 12, el muro conmutable en fila 13 y la losa rúnica.
@@ -200,7 +342,17 @@ public sealed class PuzzleManager
         TreasureCoord = new(17, 13);
         Treasure3Coord = new(17, 13);
         Treasure4Coord = new(17, 13);
+        Treasure5Coord = new(11, 3);
+        Treasure6Coord = new(11, 3);
+        Trap3Coord = new(9, 4);
+        Stone2Coord = new(7, 10);
+        Wall2Coord = new(4, 10);
+        Stone3Coord = new(12, 7);
+        Wall3Coord = new(14, 7);
+        HasExtraTreasure = normalized is >= 5 and <= 9;
+        HasMultipleTreasureDoors = normalized is 8 or 9;
         HasTrap2 = true;
+        HasTrap3 = normalized == 5;
 
         switch (normalized)
         {
@@ -238,43 +390,62 @@ public sealed class PuzzleManager
                 break;
             case 5:
                 StoneCoord = new(8, 13);
-                Treasure2Coord = new(5, 4);
-                ExitDoorCoord = new(18, 4);
-                KeyCoord = new(16, 6);
-                TrapCoord = new(16, 9);
-                Trap2Coord = new(13, 5);
+                WallCoord = new(14, 10);
+                TreasureCoord = new(17, 10);
+                Treasure3Coord = new(17, 10);
+                Treasure4Coord = new(17, 10);
+                Treasure2Coord = new(6, 7);
+                Treasure5Coord = new(11, 3);
+                Treasure6Coord = new(11, 3);
+                ExitDoorCoord = new(18, 3);
+                KeyCoord = new(11, 9);
+                TrapCoord = new(11, 11);
+                Trap2Coord = new(13, 8);
+                Trap3Coord = new(9, 4);
                 break;
             case 6:
                 StoneCoord = new(7, 13);
-                Treasure2Coord = new(9, 5);
-                ExitDoorCoord = new(1, 5);
-                KeyCoord = new(16, 7);
-                TrapCoord = new(16, 10);
-                Trap2Coord = new(11, 6);
+                Treasure2Coord = new(8, 7);
+                Treasure5Coord = new(12, 3);
+                ExitDoorCoord = new(1, 3);
+                KeyCoord = new(16, 9);
+                TrapCoord = new(16, 11);
+                Trap2Coord = new(13, 8);
                 break;
             case 7:
                 StoneCoord = new(9, 13);
-                Treasure2Coord = new(7, 4);
-                ExitDoorCoord = new(18, 4);
-                KeyCoord = new(15, 6);
-                TrapCoord = new(15, 9);
-                Trap2Coord = new(12, 5);
+                Treasure2Coord = new(7, 7);
+                Treasure5Coord = new(10, 3);
+                ExitDoorCoord = new(18, 3);
+                KeyCoord = new(15, 9);
+                TrapCoord = new(15, 11);
+                Trap2Coord = new(12, 8);
                 break;
             case 8:
                 StoneCoord = new(8, 13);
-                Treasure2Coord = new(6, 5);
-                ExitDoorCoord = new(1, 5);
-                KeyCoord = new(15, 7);
-                TrapCoord = new(15, 10);
-                Trap2Coord = new(10, 6);
+                Stone2Coord = new(7, 10);
+                Wall2Coord = new(4, 10);
+                Treasure2Coord = new(2, 10);
+                Stone3Coord = new(12, 7);
+                Wall3Coord = new(14, 7);
+                Treasure5Coord = new(17, 7);
+                ExitDoorCoord = new(1, 2);
+                KeyCoord = new(15, 9);
+                TrapCoord = new(15, 11);
+                Trap2Coord = new(6, 8);
                 break;
             case 9:
                 StoneCoord = new(7, 13);
-                Treasure2Coord = new(8, 4);
-                ExitDoorCoord = new(18, 4);
-                KeyCoord = new(16, 6);
-                TrapCoord = new(16, 9);
-                Trap2Coord = new(13, 5);
+                Stone2Coord = new(6, 10);
+                Wall2Coord = new(4, 10);
+                Treasure2Coord = new(2, 10);
+                Stone3Coord = new(12, 7);
+                Wall3Coord = new(14, 7);
+                Treasure5Coord = new(17, 7);
+                ExitDoorCoord = new(18, 2);
+                KeyCoord = new(15, 9);
+                TrapCoord = new(15, 11);
+                Trap2Coord = new(10, 8);
                 break;
             case 10:
                 StoneCoord = new(8, 13);
@@ -289,21 +460,52 @@ public sealed class PuzzleManager
         Trap2.Configure(Trap2Coord);
         grid.SetTile(Trap2Coord.X, Trap2Coord.Y, TileType.SolidWall);
 
+        Trap3.Configure(Trap3Coord);
+        if (HasTrap3)
+        {
+            grid.SetTile(Trap3Coord.X, Trap3Coord.Y, TileType.SolidWall);
+        }
+
         Treasure.Configure(TreasureCoord);
         Treasure2.Configure(Treasure2Coord);
+        Treasure5.Configure(Treasure5Coord);
+        Treasure6.Configure(Treasure6Coord);
         Key.Configure(KeyCoord);
         Trap.Configure(TrapCoord);
 
         // 1. Dintel superior sobre la puerta secreta para evitar saltar por encima
-        grid.SetTile(WallCoord.X, 10, TileType.SolidWall);
-        grid.SetTile(WallCoord.X, 11, TileType.SolidWall);
-        grid.SetTile(WallCoord.X, 12, TileType.SolidWall);
+        if (normalized == 5)
+        {
+            // En Recámara 5 la cámara secreta está en el Nivel 1 (fila 10, bajo el Nivel 2 en fila 8)
+            grid.SetTile(WallCoord.X, 9, TileType.SolidWall);
+        }
+        else
+        {
+            if (!HasExtraTreasure)
+            {
+                grid.SetTile(WallCoord.X, 10, TileType.SolidWall);
+            }
+            grid.SetTile(WallCoord.X, 11, TileType.SolidWall);
+            grid.SetTile(WallCoord.X, 12, TileType.SolidWall);
+        }
 
         // 2. Muro conmutable inicialmente cerrado
         grid.SetTile(WallCoord.X, WallCoord.Y, TileType.SolidWall);
 
         // 3. Piedra de activación en el suelo
         grid.SetTile(StoneCoord.X, StoneCoord.Y, TileType.PressurePlate);
+
+        // 3b. Puertas y losas adicionales para acceder a los tesoros en Recámaras 8 y 9
+        if (HasMultipleTreasureDoors)
+        {
+            grid.SetTile(Wall2Coord.X, 9, TileType.SolidWall);
+            grid.SetTile(Wall2Coord.X, Wall2Coord.Y, TileType.SolidWall);
+            grid.SetTile(Stone2Coord.X, Stone2Coord.Y, TileType.PressurePlate);
+
+            grid.SetTile(Wall3Coord.X, 6, TileType.SolidWall);
+            grid.SetTile(Wall3Coord.X, Wall3Coord.Y, TileType.SolidWall);
+            grid.SetTile(Stone3Coord.X, Stone3Coord.Y, TileType.PressurePlate);
+        }
 
         // 4. Trampa de suelo bajo la llave inicialmente cerrada
         grid.SetTile(TrapCoord.X, TrapCoord.Y, TileType.SolidWall);
@@ -324,6 +526,10 @@ public sealed class PuzzleManager
         _wasJumpingOverMummy2 = false;
         IsWallOpen = false;
         WasPlayerOnStone = false;
+        IsWall2Open = false;
+        WasPlayerOnStone2 = false;
+        IsWall3Open = false;
+        WasPlayerOnStone3 = false;
         NotificationTimer = 0;
         NotificationMessage = "";
         IsChamberCompleted = false;
@@ -338,21 +544,35 @@ public sealed class PuzzleManager
         _suppressTrap1FromUpperFall = false;
         IsPlayerTrappedInTrap2 = false;
         HasTrap2Eliminated = false;
+        IsPlayerTrappedInTrap3 = false;
+        HasTrap3Eliminated = false;
+        Trap3OpenTimer = 0;
+        Mummy3TrapFallCount = 0;
+        IsMummy3FallingInTrap = false;
+        IsTreasure6Spawned = false;
+        HasJumpedOverLevel3Mummy = false;
+        Level3MummyJumpCount = 0;
+        _wasJumpingOverMummy3 = false;
         Treasure.Reset();
         Treasure2.Reset();
         Treasure3.Reset();
         Treasure4.Reset();
+        Treasure5.Reset();
+        Treasure6.Reset();
         Key.Reset();
         Trap.Reset();
         Trap2.Reset();
+        Trap3.Reset();
         Treasure3.Configure(Treasure3Coord);
         Treasure4.Configure(Treasure4Coord);
+        Treasure5.Configure(Treasure5Coord);
+        Treasure6.Configure(Treasure6Coord);
     }
 
     /// <summary>
     /// Actualiza la lógica de colisión con la piedra interruptora y la recolección del tesoro.
     /// </summary>
-    public void Update(RoomGrid grid, Player player, Mummy? mummy = null)
+    public void Update(RoomGrid grid, Player player, Mummy? mummy = null, Mummy? mummyLevel3 = null)
     {
         ArgumentNullException.ThrowIfNull(grid);
         ArgumentNullException.ThrowIfNull(player);
@@ -393,6 +613,7 @@ public sealed class PuzzleManager
                     2 => Chamber2Puzzle1Stage == 3 && Treasure.IsCollected && Key.IsCollected && HasJumpedOverLevel1Mummy,
                     3 => Chamber3KeyCollectedFirst && Key.IsCollected && Treasure.IsCollected && Treasure2.IsCollected,
                     4 => Treasure.IsCollected && Treasure2.IsCollected && Key.IsCollected && Chamber4MummyJumpCount >= 2,
+                    >= 5 and <= 9 => Treasure.IsCollected && Treasure2.IsCollected && Treasure5.IsCollected && Key.IsCollected,
                     _ => Treasure.IsCollected && Treasure2.IsCollected && Key.IsCollected
                 };
 
@@ -428,6 +649,44 @@ public sealed class PuzzleManager
         }
 
         WasPlayerOnStone = isPlayerOnStone;
+
+        // 2b. Conmutación de las puertas adicionales de tesoros en Nivel 1 y Nivel 2 (Recámaras 8 y 9)
+        if (HasMultipleTreasureDoors)
+        {
+            float stone2Left = Stone2Coord.X * GameConstants.TILE_SIZE;
+            float stone2Right = stone2Left + GameConstants.TILE_SIZE;
+            float stone2Top = Stone2Coord.Y * GameConstants.TILE_SIZE;
+            float stone2Bottom = stone2Top + GameConstants.TILE_SIZE;
+
+            bool isPlayerOnStone2 = playerRight > stone2Left + 2f &&
+                                    playerLeft < stone2Right - 2f &&
+                                    playerBottom > stone2Top &&
+                                    playerTop < stone2Bottom;
+
+            if (isPlayerOnStone2 && !WasPlayerOnStone2)
+            {
+                IsWall2Open = !IsWall2Open;
+                grid.SetTile(Wall2Coord.X, Wall2Coord.Y, IsWall2Open ? TileType.Empty : TileType.SolidWall);
+            }
+            WasPlayerOnStone2 = isPlayerOnStone2;
+
+            float stone3Left = Stone3Coord.X * GameConstants.TILE_SIZE;
+            float stone3Right = stone3Left + GameConstants.TILE_SIZE;
+            float stone3Top = Stone3Coord.Y * GameConstants.TILE_SIZE;
+            float stone3Bottom = stone3Top + GameConstants.TILE_SIZE;
+
+            bool isPlayerOnStone3 = playerRight > stone3Left + 2f &&
+                                    playerLeft < stone3Right - 2f &&
+                                    playerBottom > stone3Top &&
+                                    playerTop < stone3Bottom;
+
+            if (isPlayerOnStone3 && !WasPlayerOnStone3)
+            {
+                IsWall3Open = !IsWall3Open;
+                grid.SetTile(Wall3Coord.X, Wall3Coord.Y, IsWall3Open ? TileType.Empty : TileType.SolidWall);
+            }
+            WasPlayerOnStone3 = isPlayerOnStone3;
+        }
 
         // 3. Detección de recolección del tesoro de la Plataforma 0
         bool collectedTreasureThisFrame = false;
@@ -478,6 +737,52 @@ public sealed class PuzzleManager
                 Score += 1000;
                 NotificationTimer = 180; // 3 segundos a 60 FPS
                 NotificationMessage = MSG_TREASURE;
+            }
+        }
+
+        // 4a. Detección de recolección del cofre de tesoro adicional en Plataforma Nivel 3 (Recámaras 5, 6 y 7)
+        bool collectedTreasure5ThisFrame = false;
+        if (HasExtraTreasure && !Treasure5.IsCollected)
+        {
+            float treasure5Left = Treasure5Coord.X * GameConstants.TILE_SIZE;
+            float treasure5Right = treasure5Left + GameConstants.TILE_SIZE;
+            float treasure5Top = Treasure5Coord.Y * GameConstants.TILE_SIZE;
+            float treasure5Bottom = treasure5Top + GameConstants.TILE_SIZE;
+
+            bool isPlayerOnTreasure5 = playerRight > treasure5Left + 2f &&
+                                       playerLeft < treasure5Right - 2f &&
+                                       playerBottom > treasure5Top &&
+                                       playerTop < treasure5Bottom;
+
+            if (isPlayerOnTreasure5)
+            {
+                Treasure5.Collect();
+                Score += 1000;
+                NotificationTimer = 180;
+                NotificationMessage = MSG_TREASURE;
+                collectedTreasure5ThisFrame = true;
+            }
+        }
+
+        // 4a-bis. Detección de recolección del sexto tesoro (Puzle de Nivel 3 en Recámara 5)
+        if (IsTreasure6Spawned && !Treasure6.IsCollected && !collectedTreasure5ThisFrame)
+        {
+            float treasure6Left = Treasure6Coord.X * GameConstants.TILE_SIZE;
+            float treasure6Right = treasure6Left + GameConstants.TILE_SIZE;
+            float treasure6Top = Treasure6Coord.Y * GameConstants.TILE_SIZE;
+            float treasure6Bottom = treasure6Top + GameConstants.TILE_SIZE;
+
+            bool isPlayerOnTreasure6 = playerRight > treasure6Left + 2f &&
+                                       playerLeft < treasure6Right - 2f &&
+                                       playerBottom > treasure6Top &&
+                                       playerTop < treasure6Bottom;
+
+            if (isPlayerOnTreasure6)
+            {
+                Treasure6.Collect();
+                Score += 1000;
+                NotificationTimer = 180;
+                NotificationMessage = MSG_TREASURE4;
             }
         }
 
@@ -880,6 +1185,151 @@ public sealed class PuzzleManager
                 }
             }
         }
+
+        // 9. Detección y ciclo de la trampa mortal de suelo y puzle en Nivel 3 (Recámara 5)
+        if (HasTrap3)
+        {
+            float trap3Left = Trap3Coord.X * GameConstants.TILE_SIZE;
+            float trap3Right = trap3Left + GameConstants.TILE_SIZE;
+            bool isOverTrap3 = playerRight > trap3Left + 2f && playerLeft < trap3Right - 2f;
+            bool isOverTrap3Hole = playerLeft >= trap3Left - 2f && playerRight <= trap3Right + 2f;
+            float platform3PlayerY = (Trap3Coord.Y - 1) * GameConstants.TILE_SIZE;
+
+            bool isPlayerAtLevel3Height = player.Position.Y <= platform3PlayerY + 4f &&
+                                          player.Position.Y >= platform3PlayerY - Player.JUMP_HEIGHT_PIXELS - 4f;
+            bool isGroundedOnPlatform3 = MathF.Abs(player.Position.Y - platform3PlayerY) <= 4f &&
+                                         (player.State == PlayerState.Idle || player.State == PlayerState.Walking);
+
+            if (isOverTrap3 && isPlayerAtLevel3Height && !Trap3.IsOpen)
+            {
+                Trap3.Open();
+                grid.SetTile(Trap3Coord.X, Trap3Coord.Y, TileType.Empty);
+                Trap3OpenTimer = 120;
+            }
+
+            if (Trap3.IsOpen && isOverTrap3Hole && isGroundedOnPlatform3 && !IsPlayerTrappedInTrap3)
+            {
+                player.ForceFall(grid);
+                IsPlayerTrappedInTrap3 = true;
+                HasTrap3Eliminated = false;
+                NotificationTimer = 120;
+                NotificationMessage = MSG_TRAP2;
+            }
+
+            if (Trap3.IsOpen)
+            {
+                if (Trap3OpenTimer > 0)
+                {
+                    Trap3OpenTimer--;
+                    if (Trap3OpenTimer == 0)
+                    {
+                        Trap3.Close();
+                        grid.SetTile(Trap3Coord.X, Trap3Coord.Y, TileType.SolidWall);
+                    }
+                }
+            }
+
+            if (IsPlayerTrappedInTrap3)
+            {
+                if (!player.IsEliminated && player.State != PlayerState.Falling && player.Position.Y <= platform3PlayerY + 4f)
+                {
+                    IsPlayerTrappedInTrap3 = false;
+                    HasTrap3Eliminated = false;
+                }
+                else
+                {
+                    if (Trap3.IsOpen && player.Position.Y >= (Trap3Coord.Y + 1) * GameConstants.TILE_SIZE)
+                    {
+                        Trap3.Close();
+                        grid.SetTile(Trap3Coord.X, Trap3Coord.Y, TileType.SolidWall);
+                        Trap3OpenTimer = 0;
+                    }
+
+                    if (!HasTrap3Eliminated && (player.Position.Y >= 13 * GameConstants.TILE_SIZE || (player.State == PlayerState.Idle && player.Position.Y > Trap3Coord.Y * GameConstants.TILE_SIZE) || player.IsEliminated))
+                    {
+                        HasTrap3Eliminated = true;
+                        if (!player.IsEliminated)
+                        {
+                            player.Eliminate();
+                        }
+                        NotificationTimer = 120;
+                        NotificationMessage = MSG_TRAP2;
+                    }
+                }
+            }
+
+            // 9b. Puzle de Nivel 3 (Recámara 5): recoger Treasure5 -> saltar momia de Nivel 3 + hacerla caer en Trap3 (x2)
+            if (mummyLevel3 != null && mummyLevel3.IsActive)
+            {
+                float mummy3Left = mummyLevel3.Position.X;
+                float mummy3Right = mummyLevel3.Position.X + Mummy.WIDTH;
+                bool isMummy3OverTrap3 = mummy3Right > trap3Left + 2f && mummy3Left < trap3Right - 2f;
+                bool isMummy3OnLevel3 = MathF.Abs(mummyLevel3.Position.Y - platform3PlayerY) <= 4f;
+
+                if (!mummyLevel3.IsFalling && isMummy3OnLevel3)
+                {
+                    if (player.State == PlayerState.Jumping)
+                    {
+                        bool horizOverlap = playerRight > mummy3Left && playerLeft < mummy3Right;
+                        bool isAbove = playerBottom <= (mummyLevel3.Position.Y + 4f);
+                        if (horizOverlap && isAbove)
+                        {
+                            _wasJumpingOverMummy3 = true;
+                        }
+                    }
+                    else if (_wasJumpingOverMummy3)
+                    {
+                        _wasJumpingOverMummy3 = false;
+                        if (!player.IsEliminated)
+                        {
+                            RegisterLevel3MummyJump();
+                        }
+                    }
+                }
+                else
+                {
+                    _wasJumpingOverMummy3 = false;
+                }
+
+                if (!mummyLevel3.IsFalling && Trap3.IsOpen && isMummy3OverTrap3 && isMummy3OnLevel3)
+                {
+                    mummyLevel3.SetFalling(true);
+                    IsMummy3FallingInTrap = true;
+                }
+
+                if (IsMummy3FallingInTrap && mummyLevel3.Position.Y >= 13f * GameConstants.TILE_SIZE)
+                {
+                    IsMummy3FallingInTrap = false;
+
+                    bool isValidFall3 = Treasure5.IsCollected && HasJumpedOverLevel3Mummy;
+                    HasJumpedOverLevel3Mummy = false;
+                    Level3MummyJumpCount = 0;
+
+                    if (!isValidFall3)
+                    {
+                        mummyLevel3.Reset();
+                    }
+                    else
+                    {
+                        Mummy3TrapFallCount++;
+                        if (Mummy3TrapFallCount < 2)
+                        {
+                            mummyLevel3.Reset();
+                            NotificationTimer = 120;
+                            NotificationMessage = MSG_MUMMY_TRAPPED_1;
+                        }
+                        else
+                        {
+                            mummyLevel3.IsActive = false;
+                            mummyLevel3.SetFalling(false);
+                            SpawnTreasure6();
+                        }
+                    }
+                }
+            }
+        }
+
+        UpdateChamberCompletionStatus();
 
         if (NotificationTimer > 0)
         {

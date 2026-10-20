@@ -229,12 +229,79 @@ public class RoomGridTests
                 TileType tile = grid.GetTile(x, y);
                 if (tile == TileType.ExitDoor) hasExitDoor = true;
                 if (tile == TileType.Ladder) ladderCount++;
-                if (tile == TileType.SolidWall && y is >= 4 and <= 10) platformTiles++;
+                if (tile == TileType.SolidWall && y is >= 4 and <= 11) platformTiles++;
             }
         }
 
         Assert.True(hasExitDoor, $"La Recámara {chamberNumber} debe tener una puerta de salida");
         Assert.True(ladderCount >= 7, $"La Recámara {chamberNumber} debe tener escaleras entre plataformas");
         Assert.True(platformTiles >= 20, $"La Recámara {chamberNumber} debe tener plataformas en Nivel 1 y Nivel 2");
+    }
+
+    [Theory]
+    [InlineData(5, 18, 3)]
+    [InlineData(6, 1, 3)]
+    [InlineData(7, 18, 3)]
+    public void PyramidLevel2_Chambers5To7_HaveFourPlatforms_ThreeLadders_AndExitDoorOnLevel3(
+        int chamberNumber, int expectedExitX, int expectedExitY)
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(chamberNumber);
+
+        Assert.Equal(2, grid.PyramidLevel);
+        Assert.Equal(4, grid.Platforms.Count);
+
+        Assert.Equal(0, grid.Platforms[0].Level);
+        Assert.Equal(14, grid.Platforms[0].Row);
+
+        Assert.Equal(1, grid.Platforms[1].Level);
+        Assert.Equal(11, grid.Platforms[1].Row);
+
+        Assert.Equal(2, grid.Platforms[2].Level);
+        Assert.Equal(8, grid.Platforms[2].Row);
+
+        Assert.Equal(3, grid.Platforms[3].Level);
+        Assert.Equal(4, grid.Platforms[3].Row);
+
+        Assert.Equal(TileType.ExitDoor, grid.GetTile(expectedExitX, expectedExitY));
+        Assert.Equal(0, grid.GetPlatformLevel(13 * GameConstants.TILE_SIZE));
+        Assert.Equal(1, grid.GetPlatformLevel(10 * GameConstants.TILE_SIZE));
+        Assert.Equal(2, grid.GetPlatformLevel(7 * GameConstants.TILE_SIZE));
+        Assert.Equal(3, grid.GetPlatformLevel(3 * GameConstants.TILE_SIZE));
+    }
+
+    [Theory]
+    [InlineData(8, 1, 2)]
+    [InlineData(9, 18, 2)]
+    public void PyramidLevel3_Chambers8And9_HaveFivePlatforms_FourLadders_AndExitDoorOnLevel4(
+        int chamberNumber, int expectedExitX, int expectedExitY)
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(chamberNumber);
+
+        Assert.Equal(3, grid.PyramidLevel);
+        Assert.Equal(5, grid.Platforms.Count);
+
+        Assert.Equal(0, grid.Platforms[0].Level);
+        Assert.Equal(14, grid.Platforms[0].Row);
+
+        Assert.Equal(1, grid.Platforms[1].Level);
+        Assert.Equal(11, grid.Platforms[1].Row);
+
+        Assert.Equal(2, grid.Platforms[2].Level);
+        Assert.Equal(8, grid.Platforms[2].Row);
+
+        Assert.Equal(3, grid.Platforms[3].Level);
+        Assert.Equal(5, grid.Platforms[3].Row);
+
+        Assert.Equal(4, grid.Platforms[4].Level);
+        Assert.Equal(3, grid.Platforms[4].Row);
+
+        Assert.Equal(TileType.ExitDoor, grid.GetTile(expectedExitX, expectedExitY));
+        Assert.Equal(0, grid.GetPlatformLevel(13 * GameConstants.TILE_SIZE));
+        Assert.Equal(1, grid.GetPlatformLevel(10 * GameConstants.TILE_SIZE));
+        Assert.Equal(2, grid.GetPlatformLevel(7 * GameConstants.TILE_SIZE));
+        Assert.Equal(3, grid.GetPlatformLevel(4 * GameConstants.TILE_SIZE));
+        Assert.Equal(4, grid.GetPlatformLevel(2 * GameConstants.TILE_SIZE));
     }
 }

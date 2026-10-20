@@ -1663,4 +1663,432 @@ public class PuzzleManagerTests
         Assert.False(mummyLevel2.IsActive);
         Assert.True(puzzle.IsTreasure4Spawned);
     }
+
+    [Theory]
+    [InlineData(5, 11, 3)]
+    [InlineData(6, 12, 3)]
+    [InlineData(7, 10, 3)]
+    public void PyramidLevel2_Chambers5To7_HaveExtraTreasureOnLevel3_AndPassableLevel1Walkway(
+        int chamberNumber, int expectedTreasure5X, int expectedTreasure5Y)
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(chamberNumber);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, chamberNumber);
+
+        Assert.True(puzzle.HasExtraTreasure);
+        Assert.Equal(new GridCoord(expectedTreasure5X, expectedTreasure5Y), puzzle.Treasure5Coord);
+        Assert.False(puzzle.Treasure5.IsCollected);
+
+        if (chamberNumber == 5)
+        {
+            // En Recámara 5, la puerta y el tesoro secreto están en Nivel 1 (fila 10) y el Nivel 0 (fila 13) queda despejado para la momia
+            Assert.Equal(new GridCoord(14, 10), puzzle.WallCoord);
+            Assert.Equal(new GridCoord(17, 10), puzzle.TreasureCoord);
+            Assert.Equal(new GridCoord(17, 10), puzzle.Treasure3Coord);
+            Assert.Equal(new GridCoord(17, 10), puzzle.Treasure4Coord);
+            Assert.Equal(TileType.SolidWall, grid.GetTile(14, 9));
+            Assert.Equal(TileType.SolidWall, grid.GetTile(14, 10));
+            Assert.Equal(TileType.Empty, grid.GetTile(14, 12));
+            Assert.Equal(TileType.Empty, grid.GetTile(14, 13));
+        }
+        else
+        {
+            // En Recámaras 6 y 7, el corredor de Nivel 1 (fila 10) sobre el dintel de la cámara secreta (columna 14) está despejado
+            Assert.Equal(TileType.Empty, grid.GetTile(14, 10));
+            Assert.Equal(TileType.SolidWall, grid.GetTile(14, 11));
+            Assert.Equal(TileType.SolidWall, grid.GetTile(14, 12));
+        }
+
+        // Recolectar los 3 cofres iniciales otorga 3000 puntos
+        var player = new Player(puzzle.TreasureCoord);
+        puzzle.Update(grid, player);
+        Assert.True(puzzle.Treasure.IsCollected);
+        Assert.Equal(1000, puzzle.Score);
+
+        player.SetPosition(puzzle.Treasure2Coord.X * GameConstants.TILE_SIZE, puzzle.Treasure2Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        Assert.True(puzzle.Treasure2.IsCollected);
+        Assert.Equal(2000, puzzle.Score);
+
+        player.SetPosition(puzzle.Treasure5Coord.X * GameConstants.TILE_SIZE, puzzle.Treasure5Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        Assert.True(puzzle.Treasure5.IsCollected);
+        Assert.Equal(3000, puzzle.Score);
+    }
+
+    [Fact]
+    public void Chamber5_SecretTreasureOnLevel1_MummyOnLevel0_AllThreePuzzlesWorkCorrectly()
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(5);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, 5);
+
+        var player = new Player(puzzle.StoneCoord);
+        var mummyLevel0 = new Mummy(
+            spawnX: 16f * GameConstants.TILE_SIZE,
+            spawnY: 13f * GameConstants.TILE_SIZE,
+            minX: 4f * GameConstants.TILE_SIZE,
+            maxX: 18f * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            initialFacing: Direction.Left,
+            initiallyAwake: true,
+            initiallyActive: true);
+        var mummyLevel2 = new Mummy(
+            spawnX: 15f * GameConstants.TILE_SIZE,
+            spawnY: 7f * GameConstants.TILE_SIZE,
+            minX: 2f * GameConstants.TILE_SIZE,
+            maxX: 18f * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            initialFacing: Direction.Right,
+            initiallyAwake: true,
+            initiallyActive: true);
+
+        // 1. Puzle 1: abrir la puerta de Nivel 1 (14, 10) desde la losa en Nivel 0 (8, 13), recoger los 3 cofres + llave y ciclar 3 veces
+        puzzle.Update(grid, player, mummyLevel2);
+        Assert.True(puzzle.IsWallOpen);
+        Assert.Equal(TileType.Empty, grid.GetTile(14, 10));
+
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+        player.SetPosition(puzzle.Treasure2Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure2Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+        player.SetPosition(puzzle.Treasure5Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure5Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+        player.SetPosition(puzzle.KeyCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.KeyCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+
+        for (int i = 0; i < 5; i++)
+        {
+            player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player, mummyLevel2);
+            player.SetPosition(10 * GameConstants.TILE_SIZE, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player, mummyLevel2);
+        }
+
+        Assert.True(puzzle.HasSecretTreasureReloaded);
+        Assert.False(puzzle.Treasure.IsCollected);
+
+        // Recoger el tesoro recargado en Nivel 1 (17, 10)
+        player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+        Assert.True(puzzle.Treasure.IsCollected);
+
+        // 2. Puzle 2: saltar 4 veces sobre la momia que patrulla en el Nivel 0 la petrifica en Nivel 0 y revela Treasure3 en Nivel 1 (17, 10)
+        for (int j = 0; j < 4; j++)
+        {
+            mummyLevel0.RegisterJumpOver();
+        }
+        Assert.True(mummyLevel0.HasReachedLevel0);
+        Assert.True(mummyLevel0.IsPuzzleCompleted);
+
+        puzzle.SpawnTreasure3(grid);
+        Assert.True(puzzle.IsTreasure3Spawned);
+        Assert.Equal(new GridCoord(17, 10), puzzle.Treasure3Coord);
+        player.SetPosition(puzzle.Treasure3Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure3Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2);
+        Assert.True(puzzle.Treasure3.IsCollected);
+
+        // 3. Puzle 3: hacer caer 3 veces a la momia de Nivel 2 (fila 7) por la trampa (13, 8) revela Treasure4 en Nivel 1 (17, 10)
+        for (int fall = 0; fall < 3; fall++)
+        {
+            puzzle.Trap2.Open();
+            grid.SetTile(puzzle.Trap2Coord.X, puzzle.Trap2Coord.Y, TileType.Empty);
+            mummyLevel2.SetPosition(puzzle.Trap2Coord.X * GameConstants.TILE_SIZE + 2f, 7f * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player, mummyLevel2);
+            mummyLevel2.SetPosition(puzzle.Trap2Coord.X * GameConstants.TILE_SIZE + 2f, 13f * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player, mummyLevel2);
+        }
+
+        Assert.Equal(3, puzzle.Mummy2TrapFallCount);
+        Assert.False(mummyLevel2.IsActive);
+        Assert.True(puzzle.IsTreasure4Spawned);
+        Assert.Equal(new GridCoord(17, 10), puzzle.Treasure4Coord);
+    }
+
+    [Theory]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    public void PyramidLevel2_Chambers5To7_JumpingOnLevel1_CollectsKeyAndClearsTrapUnderLevel2Ceiling(int chamberNumber)
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(chamberNumber);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, chamberNumber);
+
+        // Colocar al jugador 1 columna a la izquierda de la llave/trampa en Nivel 1 (fila 10, Y = 160)
+        int startCol = puzzle.KeyCoord.X - 1;
+        var player = new Player(startCol * GameConstants.TILE_SIZE + 4f, 10 * GameConstants.TILE_SIZE);
+
+        var jumpInput = new RetroGamePiramid.Input.PlayerInput(left: false, right: true, up: false, down: false, jump: true);
+        player.Update(grid, in jumpInput);
+        puzzle.Update(grid, player);
+
+        var neutral = new RetroGamePiramid.Input.PlayerInput(false, false, false, false, false);
+        for (int frame = 0; frame < Player.JUMP_DURATION_FRAMES; frame++)
+        {
+            player.Update(grid, in neutral);
+            puzzle.Update(grid, player);
+        }
+
+        Assert.True(puzzle.HasKey, $"El jugador debe poder recoger la llave saltando en Nivel 1 en Recámara {chamberNumber}");
+        Assert.False(puzzle.IsTrapOpen, $"La trampa bajo la llave no debe abrirse al saltar sobre ella en Recámara {chamberNumber}");
+        Assert.False(player.IsEliminated);
+        Assert.Equal(PlayerState.Idle, player.State);
+        Assert.Equal(10 * GameConstants.TILE_SIZE, player.Position.Y);
+    }
+
+    [Fact]
+    public void Chamber5_Level3TrapAndPuzzle_RequiresTreasure5_ThenJumpAndTrapFall2Times_SpawnsTreasure6()
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(5);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, 5);
+
+        Assert.True(puzzle.HasTrap3);
+        Assert.Equal(new GridCoord(9, 4), puzzle.Trap3Coord);
+        Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.Trap3Coord));
+
+        var player = new Player(new GridCoord(2, 13));
+        var mummyLevel2 = new Mummy(
+            spawnX: 15f * GameConstants.TILE_SIZE,
+            spawnY: 7f * GameConstants.TILE_SIZE,
+            minX: 2f * GameConstants.TILE_SIZE,
+            maxX: 18f * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            initialFacing: Direction.Right,
+            initiallyAwake: true,
+            initiallyActive: true);
+        var mummyLevel3 = new Mummy(
+            spawnX: 14f * GameConstants.TILE_SIZE,
+            spawnY: 3f * GameConstants.TILE_SIZE,
+            minX: 2f * GameConstants.TILE_SIZE,
+            maxX: 16f * GameConstants.TILE_SIZE - Mummy.WIDTH,
+            initialFacing: Direction.Left,
+            initiallyAwake: true,
+            initiallyActive: true);
+
+        // Si la momia de Nivel 3 cae en la trampa antes de recoger Treasure5, se regenera sin contar
+        puzzle.Trap3.Open();
+        grid.SetTile(puzzle.Trap3Coord.X, puzzle.Trap3Coord.Y, TileType.Empty);
+        mummyLevel3.SetPosition(puzzle.Trap3Coord.X * GameConstants.TILE_SIZE + 2f, 3f * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2, mummyLevel3);
+        Assert.True(puzzle.IsMummy3FallingInTrap);
+
+        mummyLevel3.SetPosition(puzzle.Trap3Coord.X * GameConstants.TILE_SIZE + 2f, 13f * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2, mummyLevel3);
+        Assert.Equal(0, puzzle.Mummy3TrapFallCount);
+        Assert.True(mummyLevel3.IsActive);
+
+        // 1. Recoger primero el cofre de Nivel 3 (Treasure5 en 11, 3)
+        player.SetPosition(puzzle.Treasure5Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure5Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2, mummyLevel3);
+        Assert.True(puzzle.Treasure5.IsCollected);
+        Assert.Equal(1000, puzzle.Score);
+
+        // 2. Ciclo 1: saltar sobre la momia de Nivel 3 y hacerla caer por Trap3 (9, 4)
+        puzzle.RegisterLevel3MummyJump();
+        Assert.True(puzzle.HasJumpedOverLevel3Mummy);
+
+        puzzle.Trap3.Open();
+        grid.SetTile(puzzle.Trap3Coord.X, puzzle.Trap3Coord.Y, TileType.Empty);
+        mummyLevel3.SetPosition(puzzle.Trap3Coord.X * GameConstants.TILE_SIZE + 2f, 3f * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2, mummyLevel3);
+        mummyLevel3.SetPosition(puzzle.Trap3Coord.X * GameConstants.TILE_SIZE + 2f, 13f * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2, mummyLevel3);
+
+        Assert.Equal(1, puzzle.Mummy3TrapFallCount);
+        Assert.True(mummyLevel3.IsActive);
+        Assert.False(puzzle.IsTreasure6Spawned);
+
+        // 3. Ciclo 2: saltar de nuevo sobre la momia de Nivel 3 y hacerla caer por Trap3
+        puzzle.RegisterLevel3MummyJump();
+        puzzle.Trap3.Open();
+        grid.SetTile(puzzle.Trap3Coord.X, puzzle.Trap3Coord.Y, TileType.Empty);
+        mummyLevel3.SetPosition(puzzle.Trap3Coord.X * GameConstants.TILE_SIZE + 2f, 3f * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2, mummyLevel3);
+        mummyLevel3.SetPosition(puzzle.Trap3Coord.X * GameConstants.TILE_SIZE + 2f, 13f * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2, mummyLevel3);
+
+        Assert.Equal(2, puzzle.Mummy3TrapFallCount);
+        Assert.False(mummyLevel3.IsActive);
+        Assert.True(puzzle.IsTreasure6Spawned);
+        Assert.False(puzzle.Treasure6.IsCollected);
+
+        // 4. Recoger el nuevo cofre Treasure6 en Nivel 3 (11, 3) otorga +1000 puntos adicionales
+        player.SetPosition(puzzle.Treasure6Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure6Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player, mummyLevel2, mummyLevel3);
+        Assert.True(puzzle.Treasure6.IsCollected);
+        Assert.Equal(2000, puzzle.Score);
+    }
+
+    [Theory]
+    [InlineData(8, 8, 7, 12)]
+    [InlineData(9, 7, 6, 12)]
+    public void PyramidLevel3_Chambers8And9_HaveThreeTreasureDoors_AndThreePressurePlates_GuardingTreasures(
+        int chamberNumber, int expectedStone1X, int expectedStone2X, int expectedStone3X)
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(chamberNumber);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, chamberNumber);
+
+        Assert.True(puzzle.HasMultipleTreasureDoors);
+        Assert.True(puzzle.HasExtraTreasure);
+
+        // Verificar coordenadas de las 3 losas de presión y las 3 puertas
+        Assert.Equal(new GridCoord(expectedStone1X, 13), puzzle.StoneCoord);
+        Assert.Equal(new GridCoord(14, 13), puzzle.WallCoord);
+        Assert.Equal(new GridCoord(17, 13), puzzle.TreasureCoord);
+
+        Assert.Equal(new GridCoord(expectedStone2X, 10), puzzle.Stone2Coord);
+        Assert.Equal(new GridCoord(4, 10), puzzle.Wall2Coord);
+        Assert.Equal(new GridCoord(2, 10), puzzle.Treasure2Coord);
+
+        Assert.Equal(new GridCoord(expectedStone3X, 7), puzzle.Stone3Coord);
+        Assert.Equal(new GridCoord(14, 7), puzzle.Wall3Coord);
+        Assert.Equal(new GridCoord(17, 7), puzzle.Treasure5Coord);
+
+        // Las 3 puertas y sus dinteles comienzan cerrados
+        Assert.False(puzzle.IsWallOpen);
+        Assert.False(puzzle.IsWall2Open);
+        Assert.False(puzzle.IsWall3Open);
+        Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.WallCoord));
+        Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.Wall2Coord));
+        Assert.Equal(TileType.SolidWall, grid.GetTile(puzzle.Wall3Coord));
+        Assert.Equal(TileType.SolidWall, grid.GetTile(4, 9));
+        Assert.Equal(TileType.SolidWall, grid.GetTile(14, 6));
+
+        var player = new Player(puzzle.StoneCoord);
+
+        // 1. Pisar Losa 1 abre Puerta 1 en Nivel 0 (14, 13) y permite recoger Treasure (17, 13)
+        puzzle.Update(grid, player);
+        Assert.True(puzzle.IsWallOpen);
+        Assert.Equal(TileType.Empty, grid.GetTile(puzzle.WallCoord));
+
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        Assert.True(puzzle.Treasure.IsCollected);
+        Assert.Equal(1000, puzzle.Score);
+
+        // 2. Pisar Losa 2 abre Puerta 2 en Nivel 1 (4, 10) y permite recoger Treasure2 (2, 10)
+        player.SetPosition(puzzle.Stone2Coord.X * GameConstants.TILE_SIZE + 1f, puzzle.Stone2Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        Assert.True(puzzle.IsWall2Open);
+        Assert.Equal(TileType.Empty, grid.GetTile(puzzle.Wall2Coord));
+
+        player.SetPosition(puzzle.Treasure2Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure2Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        Assert.True(puzzle.Treasure2.IsCollected);
+        Assert.Equal(2000, puzzle.Score);
+
+        // 3. Pisar Losa 3 abre Puerta 3 en Nivel 2 (14, 7) y permite recoger Treasure5 (17, 7)
+        player.SetPosition(puzzle.Stone3Coord.X * GameConstants.TILE_SIZE + 1f, puzzle.Stone3Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        Assert.True(puzzle.IsWall3Open);
+        Assert.Equal(TileType.Empty, grid.GetTile(puzzle.Wall3Coord));
+
+        player.SetPosition(puzzle.Treasure5Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure5Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        Assert.True(puzzle.Treasure5.IsCollected);
+        Assert.Equal(3000, puzzle.Score);
+    }
+
+    [Fact]
+    public void Chamber10_RequiresAllPuzzlesOfChambers1To9Completed_ToUnlockApex()
+    {
+        var grid = new RoomGrid();
+        var puzzle = new PuzzleManager();
+
+        // Inicialmente ninguna recámara tiene sus puzles completados y la Recámara 10 está bloqueada
+        Assert.False(puzzle.IsChamber10Unlocked);
+        Assert.Equal(0, puzzle.CompletedChambersCount);
+        Assert.False(puzzle.CanAccessChamber(10));
+        for (int c = 1; c <= 9; c++)
+        {
+            Assert.True(puzzle.CanAccessChamber(c));
+            Assert.False(puzzle.IsChamberPuzzlesCompleted(c));
+        }
+
+        // Completar los 3 puzles de la Recámara 1 automáticamente marca la Recámara 1 como completada
+        grid.LoadChamber(1);
+        puzzle.Initialize(grid, 1);
+        var player = new Player(puzzle.StoneCoord);
+
+        // Puzle 1 en Recámara 1
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.Treasure2Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure2Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.KeyCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.KeyCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        for (int i = 0; i < 5; i++)
+        {
+            player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+            player.SetPosition(10 * GameConstants.TILE_SIZE, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+        }
+        Assert.True(puzzle.HasSecretTreasureReloaded);
+        Assert.False(puzzle.AreAllChamberPuzzlesCompleted);
+
+        // Puzle 2 y Puzle 3 en Recámara 1
+        puzzle.SpawnTreasure3(grid);
+        Assert.False(puzzle.AreAllChamberPuzzlesCompleted);
+        puzzle.SpawnTreasure4(grid);
+        Assert.True(puzzle.AreAllChamberPuzzlesCompleted);
+        Assert.True(puzzle.IsChamberPuzzlesCompleted(1));
+        Assert.Equal(1, puzzle.CompletedChambersCount);
+        Assert.Equal(2, puzzle.GetFirstIncompleteChamber());
+
+        //En Recámara 5 además se requiere el 4to puzle (Treasure6 en Nivel 3)
+        grid.LoadChamber(5);
+        puzzle.Initialize(grid, 5);
+        player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.TreasureCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.TreasureCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.Treasure2Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure2Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.Treasure5Coord.X * GameConstants.TILE_SIZE + 2f, puzzle.Treasure5Coord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        player.SetPosition(puzzle.KeyCoord.X * GameConstants.TILE_SIZE + 2f, puzzle.KeyCoord.Y * GameConstants.TILE_SIZE);
+        puzzle.Update(grid, player);
+        for (int i = 0; i < 5; i++)
+        {
+            player.SetPosition(puzzle.StoneCoord.X * GameConstants.TILE_SIZE + 1f, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+            player.SetPosition(10 * GameConstants.TILE_SIZE, puzzle.StoneCoord.Y * GameConstants.TILE_SIZE);
+            puzzle.Update(grid, player);
+        }
+        puzzle.SpawnTreasure3(grid);
+        puzzle.SpawnTreasure4(grid);
+        // Aún falta el puzle de Nivel 3 en Recámara 5
+        Assert.False(puzzle.AreAllChamberPuzzlesCompleted);
+        Assert.False(puzzle.IsChamberPuzzlesCompleted(5));
+
+        puzzle.SpawnTreasure6();
+        Assert.True(puzzle.AreAllChamberPuzzlesCompleted);
+        Assert.True(puzzle.IsChamberPuzzlesCompleted(5));
+
+        // Completar las recámaras 2, 3, 4, 6, 7 y 8 (dejando pendiente la 9) -> Recámara 10 sigue bloqueada
+        foreach (int c in new[] { 2, 3, 4, 6, 7, 8 })
+        {
+            puzzle.SetChamberPuzzlesCompleted(c, true);
+        }
+        Assert.Equal(8, puzzle.CompletedChambersCount);
+        Assert.False(puzzle.IsChamber10Unlocked);
+        Assert.False(puzzle.CanAccessChamber(10));
+        Assert.Equal(9, puzzle.GetFirstIncompleteChamber());
+
+        // Al completar también los puzles de la Recámara 9, se desbloquea el acceso a la Recámara 10 en la Cúspide
+        puzzle.SetChamberPuzzlesCompleted(9, true);
+        Assert.Equal(9, puzzle.CompletedChambersCount);
+        Assert.True(puzzle.IsChamber10Unlocked);
+        Assert.True(puzzle.CanAccessChamber(10));
+        Assert.Equal(10, puzzle.GetFirstIncompleteChamber());
+    }
 }

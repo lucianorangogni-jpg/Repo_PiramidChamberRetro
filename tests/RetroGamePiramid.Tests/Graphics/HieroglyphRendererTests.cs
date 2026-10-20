@@ -460,4 +460,24 @@ public class HieroglyphRendererTests
         Assert.NotEqual(Color.Transparent, pixels[10 * width + 164]);
         Assert.Equal(Color.Transparent, pixels[10 * width + 168]);
     }
+
+    [Fact]
+    public void GenerateMuralLevel3Chamber5Pixels_ContainsChest1xJumpAnd2xTrapFallSequence()
+    {
+        const int width = HieroglyphRenderer.MURAL_LEVEL2_WIDTH;
+        Color[] pixels = HieroglyphRenderer.GenerateMuralLevel3Chamber5Pixels(
+            width,
+            HieroglyphRenderer.MURAL_LEVEL2_HEIGHT);
+
+        // 1. Cofre del Nivel 3 en x=114, y=24
+        Assert.NotEqual(Color.Transparent, pixels[24 * width + 114]);
+
+        // 2. Marca de 1 salto (I) sobre la momia de Nivel 3 en x=149, y=8
+        Assert.NotEqual(Color.Transparent, pixels[8 * width + 149]);
+
+        // 3. Dos marcas de caída en trampa (II) en x=202 y x=206, y=10
+        Assert.NotEqual(Color.Transparent, pixels[10 * width + 202]);
+        Assert.NotEqual(Color.Transparent, pixels[10 * width + 206]);
+        Assert.Equal(Color.Transparent, pixels[10 * width + 210]);
+    }
 }

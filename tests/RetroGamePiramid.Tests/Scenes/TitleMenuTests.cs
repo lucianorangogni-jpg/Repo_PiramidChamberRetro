@@ -181,5 +181,44 @@ public class TitleMenuTests
         menu.CanContinue = true;
         Assert.True(menu.CanContinue);
     }
+
+    [Fact]
+    public void Chamber10_WhenLocked_BlocksNewGameAndContinue_AndShowsWarning_UntilUnlocked()
+    {
+        var menu = new TitleMenu
+        {
+            SelectedChamber = 10,
+            SelectedOption = MenuOption.NewGame,
+            IsChamber10Unlocked = false
+        };
+
+        Assert.False(menu.CanStartSelectedChamber);
+        Assert.False(menu.ShowChamber10LockedWarning);
+
+        // Intentar confirmar NUEVO con Recámara 10 bloqueada debe ser rechazado y activar la advertencia
+        bool confirmed = menu.Update(up: false, down: false, left: false, right: false, confirm: true, out var action);
+        Assert.False(confirmed);
+        Assert.Equal(MenuOption.NewGame, action);
+        Assert.True(menu.ShowChamber10LockedWarning);
+
+        // Soltar tecla y probar en CONTINUAR con Recámara 10 bloqueada
+        menu.Update(up: false, down: false, left: false, right: false, confirm: false, out _);
+        menu.NavigateDown();
+        Assert.Equal(MenuOption.Continue, menu.SelectedOption);
+        Assert.False(menu.ShowChamber10LockedWarning);
+
+        menu.Update(up: false, down: false, left: false, right: false, confirm: false, out _);
+        confirmed = menu.Update(up: false, down: false, left: false, right: false, confirm: true, out action);
+        Assert.False(confirmed);
+        Assert.True(menu.ShowChamber10LockedWarning);
+
+        // Al desbloquear la Recámara 10 (tras completar los puzles de las recámaras 1 a 9), permite iniciar partida
+        menu.IsChamber10Unlocked = true;
+        Assert.True(menu.CanStartSelectedChamber);
+        menu.Update(up: false, down: false, left: false, right: false, confirm: false, out _);
+        confirmed = menu.Update(up: false, down: false, left: false, right: false, confirm: true, out action);
+        Assert.True(confirmed);
+        Assert.Equal(MenuOption.Continue, action);
+    }
 }
 

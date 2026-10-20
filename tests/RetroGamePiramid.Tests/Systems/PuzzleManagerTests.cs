@@ -2091,4 +2091,58 @@ public class PuzzleManagerTests
         Assert.True(puzzle.CanAccessChamber(10));
         Assert.Equal(10, puzzle.GetFirstIncompleteChamber());
     }
+
+    [Fact]
+    public void ScarabPuzzleBox_EachCompletedPuzzle_SpinsScarabFor60Frames_AndThenDisappearsFromBox()
+    {
+        var grid = new RoomGrid();
+        grid.LoadChamber(1);
+        var puzzle = new PuzzleManager();
+        puzzle.Initialize(grid, 1);
+        var player = new Player(new GridCoord(2, 13));
+
+        Assert.Equal(3, puzzle.TotalChamberPuzzles);
+        Assert.Equal(3, puzzle.RemainingScarabsCount);
+        for (int i = 0; i < 3; i++)
+        {
+            Assert.True(puzzle.IsScarabVisible(i));
+            Assert.Equal(0, puzzle.GetScarabSpinTimer(i));
+        }
+
+        // Completar Puzle 2 (SpawnTreasure3) inicia el giro del escarabajo #1 durante 60 frames
+        puzzle.SpawnTreasure3(grid);
+        Assert.Equal(2, puzzle.RemainingScarabsCount);
+        Assert.Equal(PuzzleManager.SCARAB_SPIN_DURATION_FRAMES, puzzle.GetScarabSpinTimer(1));
+        Assert.True(puzzle.IsScarabVisible(1));
+
+        // Avanzar 59 frames: aún está girando y visible
+        for (int f = 0; f < PuzzleManager.SCARAB_SPIN_DURATION_FRAMES - 1; f++)
+        {
+            puzzle.Update(grid, player);
+        }
+        Assert.Equal(1, puzzle.GetScarabSpinTimer(1));
+        Assert.True(puzzle.IsScarabVisible(1));
+
+        // En el frame 60 termina de girar y desaparece del recuadro
+        puzzle.Update(grid, player);
+        Assert.Equal(0, puzzle.GetScarabSpinTimer(1));
+        Assert.False(puzzle.IsScarabVisible(1));
+        Assert.True(puzzle.IsScarabVisible(0));
+        Assert.True(puzzle.IsScarabVisible(2));
+
+        // Verificar que las 4 rotaciones de 90 grados del sprite del escarabajo (10x10) son válidas y distintas
+        var rot0 = RetroGamePiramid.Graphics.PuzzleRenderer.GenerateScarabPixels(0);
+        var rot1 = RetroGamePiramid.Graphics.PuzzleRenderer.GenerateScarabPixels(1);
+        var rot2 = RetroGamePiramid.Graphics.PuzzleRenderer.GenerateScarabPixels(2);
+        var rot3 = RetroGamePiramid.Graphics.PuzzleRenderer.GenerateScarabPixels(3);
+        var slotPixels = RetroGamePiramid.Graphics.PuzzleRenderer.GenerateScarabSlotPixels();
+
+        Assert.Equal(100, rot0.Length);
+        Assert.Equal(100, rot1.Length);
+        Assert.Equal(100, rot2.Length);
+        Assert.Equal(100, rot3.Length);
+        Assert.Equal(100, slotPixels.Length);
+        Assert.NotEqual(rot0, rot1);
+        Assert.NotEqual(rot1, rot2);
+    }
 }

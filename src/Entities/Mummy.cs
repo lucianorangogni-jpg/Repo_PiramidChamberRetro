@@ -6,10 +6,18 @@ using RetroGamePiramid.Grid;
 namespace RetroGamePiramid.Entities;
 
 /// <summary>
-/// Entidad del enemigo Momia (Mommy).
-/// Patrulla de forma autónoma horizontalmente sobre la plataforma nivel 2 a la velocidad del jugador.
+/// Entidad del enemigo Momia (Mummy).
+/// Patrulla de forma autónoma horizontalmente sobre su plataforma asignada a la velocidad del jugador.
 /// Si colisiona con el jugador, lo elimina y le descuenta 1 vida.
-/// En Recámara 1, soporta el Puzle 5: tras 4 saltos sobre ella, entra en persecución, cae al Nivel 0 y se petrifica.
+///
+/// Configuración del Puzle 2 (Momia de Plataforma 1 / Nivel 0) por Recámara:
+/// - Recámara 1: saltar 4 veces sobre la momia en Nivel 1 -> persigue, cae al Nivel 0 y se petrifica (0 saltos extra en Nivel 0).
+/// - Recámara 2: saltar 2 veces consecutivas sobre la momia en Nivel 1 (cae al Nivel 0) + saltar 2 veces más sobre ella en Nivel 0 -> se petrifica.
+/// - Recámara 3: saltar 1 vez sobre la momia en Nivel 1 (cae al Nivel 0) + saltar 3 veces más sobre ella en Nivel 0 -> se petrifica.
+/// - Recámara 4: saltar 3 veces sobre la momia en Nivel 1 (cae al Nivel 0) + saltar 1 vez más sobre ella en Nivel 0 -> se petrifica.
+/// - Recámara 5: la momia patrulla directamente en el Nivel 0; saltar 4 veces sobre ella en el Nivel 0 -> se petrifica y abre el Tesoro 3 en Nivel 1 (17,10).
+/// - Recámaras 6, 7, 8, 9 y 10: saltar 4 veces sobre la momia en Nivel 1 -> persigue, cae al Nivel 0 y se petrifica.
+///
 /// Garantiza cero asignaciones de memoria heap en cada frame.
 /// </summary>
 public sealed class Mummy

@@ -14,6 +14,11 @@ namespace RetroGamePiramid.Graphics;
 /// </summary>
 public sealed class PuzzleRenderer : IDisposable
 {
+    public const int SCARAB_SIZE = 10;
+
+    private static readonly Color ScarabBoxBgColor = new(16, 10, 22, 220);
+    private static readonly Color ScarabBoxBorderColor = new(150, 110, 50);
+
     private readonly Texture2D _chestTexture;
     private readonly Texture2D _chestOpenTexture;
     private readonly Texture2D _wallClosedTexture;
@@ -22,8 +27,11 @@ public sealed class PuzzleRenderer : IDisposable
     private readonly Texture2D _keyTexture;
     private readonly Texture2D _trapClosedTexture;
     private readonly Texture2D _trapOpenTexture;
+    private readonly Texture2D[] _scarabTextures = new Texture2D[4];
+    private readonly Texture2D _scarabSlotTexture;
 
     private Rectangle _destRect = new(0, 0, GameConstants.TILE_SIZE, GameConstants.TILE_SIZE);
+    private Rectangle _scarabDestRect = new(0, 0, SCARAB_SIZE, SCARAB_SIZE);
     private bool _isDisposed;
 
     public Texture2D KeyTexture => _keyTexture;
@@ -40,6 +48,11 @@ public sealed class PuzzleRenderer : IDisposable
         _keyTexture = GenerateKeyTexture(graphicsDevice);
         _trapClosedTexture = GenerateTrapClosedTexture(graphicsDevice);
         _trapOpenTexture = GenerateTrapOpenTexture(graphicsDevice);
+        for (int rot = 0; rot < 4; rot++)
+        {
+            _scarabTextures[rot] = GenerateScarabTexture(graphicsDevice, rot);
+        }
+        _scarabSlotTexture = GenerateScarabSlotTexture(graphicsDevice);
     }
 
     /// <summary>
@@ -149,6 +162,9 @@ public sealed class PuzzleRenderer : IDisposable
             DrawTrap(spriteBatch, puzzle.Trap3, puzzle.Trap3Coord);
         }
 
+        // 5d. Dibuja el recuadro compacto de escarabajos que indica los puzles restantes de la recámara
+        DrawScarabPuzzleBox(spriteBatch, puzzle, font, frameCounter);
+
         // 6. Cartel de notificación (tesoro encontrado, llave obtenida o puerta bloqueada)
         if (puzzle.NotificationTimer > 0 && !string.IsNullOrEmpty(puzzle.NotificationMessage))
         {
@@ -205,6 +221,57 @@ public sealed class PuzzleRenderer : IDisposable
         bool glow = (frameCounter / 10) % 2 == 0;
         Color keyTint = glow ? Color.White : new Color(255, 235, 140);
         spriteBatch.Draw(_keyTexture, _destRect, keyTint);
+    }
+
+    private void DrawScarabPuzzleBox(SpriteBatch spriteBatch, PuzzleManager puzzle, PixelFont font, int frameCounter)
+    {
+        int totalPuzzles = puzzle.TotalChamberPuzzles;
+        int boxX = 102;
+        int boxY = 18;
+        int boxW = 6 + (totalPuzzles * 12);
+        int boxH = 16;
+
+        font.DrawFrameBox(spriteBatch, boxX, boxY, boxW, boxH, ScarabBoxBgColor, ScarabBoxBorderColor);
+
+        for (int i = 0; i < totalPuzzles; i++)
+        {
+            int slotX = boxX + 4 + (i * 12);
+            int slotY = boxY + 3;
+
+            // Dibujar la hendidura tallada del escarabajo en el recuadro
+            _scarabDestRect.X = slotX;
+            _scarabDestRect.Y = slotY;
+            _scarabDestRect.Width = SCARAB_SIZE;
+            _scarabDestRect.Height = SCARAB_SIZE;
+            spriteBatch.Draw(_scarabSlotTexture, _scarabDestRect, Color.White);
+
+            if (puzzle.IsScarabVisible(i))
+            {
+                int spinTimer = puzzle.GetScarabSpinTimer(i);
+                if (spinTimer > 0)
+                {
+                    // El escarabajo gira rápidamente sobre su eje y se encoge al final antes de desaparecer
+                    int elapsed = PuzzleManager.SCARAB_SPIN_DURATION_FRAMES - spinTimer;
+                    int rotStep = (elapsed / 3) % 4;
+                    int size = spinTimer <= 16 ? Math.Max(2, (spinTimer * SCARAB_SIZE) / 16) : SCARAB_SIZE;
+                    int offset = (SCARAB_SIZE - size) / 2;
+
+                    _scarabDestRect.X = slotX + offset;
+                    _scarabDestRect.Y = slotY + offset;
+                    _scarabDestRect.Width = size;
+                    _scarabDestRect.Height = size;
+
+                    Color spinTint = (elapsed % 4 < 2) ? Color.White : new Color(255, 240, 120);
+                    spriteBatch.Draw(_scarabTextures[rotStep], _scarabDestRect, spinTint);
+                }
+                else
+                {
+                    bool shimmer = ((frameCounter + (i * 7)) / 18) % 2 == 0;
+                    Color idleTint = shimmer ? Color.White : new Color(240, 225, 175);
+                    spriteBatch.Draw(_scarabTextures[0], _scarabDestRect, idleTint);
+                }
+            }
+        }
     }
 
     private static Texture2D GenerateChestTexture(GraphicsDevice graphicsDevice)
@@ -557,10 +624,154 @@ public sealed class PuzzleRenderer : IDisposable
         return texture;
     }
 
+    private static Texture2D GenerateScarabTexture(GraphicsDevice graphicsDevice, int rotationStep)
+    {
+        Texture2D texture = new(graphicsDevice, SCARAB_SIZE, SCARAB_SIZE);
+        texture.SetData(GenerateScarabPixels(rotationStep));
+        return texture;
+    }
+
+    private static Texture2D GenerateScarabSlotTexture(GraphicsDevice graphicsDevice)
+    {
+        Texture2D texture = new(graphicsDevice, SCARAB_SIZE, SCARAB_SIZE);
+        texture.SetData(GenerateScarabSlotPixels());
+        return texture;
+    }
+
+    /// <summary>
+    /// Genera la matriz de píxeles (10x10) de un escarabajo egipcio sagrado (Jepri) en una de sus 4 rotaciones (0=0°, 1=90°, 2=180°, 3=270°).
+    /// Desacoplado de GraphicsDevice para permitir pruebas unitarias.
+    /// </summary>
+    public static Color[] GenerateScarabPixels(int rotationStep = 0)
+    {
+        Color[] basePixels = new Color[SCARAB_SIZE * SCARAB_SIZE];
+        Array.Fill(basePixels, Color.Transparent);
+
+        Color goldBright = new(255, 225, 85);
+        Color goldBase = new(215, 170, 45);
+        Color goldDark = new(135, 95, 25);
+        Color turquoiseLight = new(70, 215, 195);
+        Color turquoiseDark = new(30, 140, 130);
+        Color legsColor = new(165, 120, 35);
+
+        for (int y = 0; y < SCARAB_SIZE; y++)
+        {
+            for (int x = 0; x < SCARAB_SIZE; x++)
+            {
+                int idx = y * SCARAB_SIZE + x;
+
+                // Antenas / mandíbulas superiores (fila 0)
+                if (y == 0 && (x == 3 || x == 6))
+                {
+                    basePixels[idx] = goldBright;
+                }
+                // Cabeza del escarabajo (fila 1)
+                else if (y == 1 && x >= 3 && x <= 6)
+                {
+                    basePixels[idx] = (x == 4 || x == 5) ? goldBright : goldDark;
+                }
+                // Tórax / pronoto dorado (filas 2 y 3)
+                else if ((y == 2 || y == 3) && x >= 2 && x <= 7)
+                {
+                    if (x == 2 || x == 7)
+                        basePixels[idx] = goldDark;
+                    else if (y == 2 && (x == 4 || x == 5))
+                        basePixels[idx] = goldBright;
+                    else
+                        basePixels[idx] = goldBase;
+                }
+                // Élitros (caparazón de turquesa y oro, filas 4 a 7)
+                else if (y >= 4 && y <= 7 && x >= 2 && x <= 7)
+                {
+                    if (x == 2 || x == 7)
+                        basePixels[idx] = goldBase;
+                    else if (x == 4 || x == 5)
+                        basePixels[idx] = (y == 4) ? goldBright : turquoiseLight;
+                    else
+                        basePixels[idx] = turquoiseDark;
+                }
+                // Extremo inferior redondeado del caparazón (fila 8)
+                else if (y == 8 && x >= 3 && x <= 6)
+                {
+                    basePixels[idx] = (x == 4 || x == 5) ? turquoiseDark : goldDark;
+                }
+                // Patas laterales (filas 2, 5 y 7 en columnas 0..1 y 8..9)
+                else if ((y == 2 || y == 5 || y == 7) && (x == 1 || x == 8))
+                {
+                    basePixels[idx] = legsColor;
+                }
+                else if ((y == 1 || y == 5 || y == 8) && (x == 0 || x == 9))
+                {
+                    basePixels[idx] = goldDark;
+                }
+            }
+        }
+
+        int normRot = ((rotationStep % 4) + 4) % 4;
+        if (normRot == 0)
+        {
+            return basePixels;
+        }
+
+        Color[] rotated = new Color[SCARAB_SIZE * SCARAB_SIZE];
+        for (int y = 0; y < SCARAB_SIZE; y++)
+        {
+            for (int x = 0; x < SCARAB_SIZE; x++)
+            {
+                Color c = basePixels[y * SCARAB_SIZE + x];
+                int rx = normRot switch
+                {
+                    1 => SCARAB_SIZE - 1 - y,
+                    2 => SCARAB_SIZE - 1 - x,
+                    _ => y
+                };
+                int ry = normRot switch
+                {
+                    1 => x,
+                    2 => SCARAB_SIZE - 1 - y,
+                    _ => SCARAB_SIZE - 1 - x
+                };
+                rotated[ry * SCARAB_SIZE + rx] = c;
+            }
+        }
+
+        return rotated;
+    }
+
+    /// <summary>
+    /// Genera la matriz de píxeles (10x10) del hueco tallado en piedra donde reposa cada escarabajo.
+    /// </summary>
+    public static Color[] GenerateScarabSlotPixels()
+    {
+        Color[] pixels = new Color[SCARAB_SIZE * SCARAB_SIZE];
+        Array.Fill(pixels, Color.Transparent);
+
+        Color recessShadow = new(10, 6, 14, 190);
+        Color recessCenter = new(24, 16, 28, 170);
+
+        for (int y = 1; y <= 8; y++)
+        {
+            for (int x = 2; x <= 7; x++)
+            {
+                if ((y == 1 || y == 8) && (x == 2 || x == 7))
+                    continue;
+
+                pixels[y * SCARAB_SIZE + x] = (y == 1 || x == 2) ? recessShadow : recessCenter;
+            }
+        }
+
+        return pixels;
+    }
+
     public void Dispose()
     {
         if (!_isDisposed)
         {
+            _scarabSlotTexture?.Dispose();
+            for (int i = 0; i < _scarabTextures.Length; i++)
+            {
+                _scarabTextures[i]?.Dispose();
+            }
             _trapOpenTexture?.Dispose();
             _trapClosedTexture?.Dispose();
             _keyTexture?.Dispose();

@@ -7,10 +7,112 @@ using RetroGamePiramid.Grid;
 namespace RetroGamePiramid.Systems;
 
 /// <summary>
-/// Gestiona el desafío del puzle de la plataforma 0 (piso inferior).
-/// Controla la losa de piedra conmutable, el muro secreto del tesoro y la recolección del cofre.
-/// Adapta dinámicamente la configuración según la recámara activa.
-/// Garantiza cero asignaciones en memoria heap en cada frame.
+/// Gestiona todos los puzles, trampas, losas de presión, puertas secretas y tesoros de las 10 recámaras de la pirámide.
+/// Garantiza cero asignaciones en memoria heap (0 allocations) en cada frame.
+///
+/// ============================================================================================================
+/// GUÍA DE RESOLUCIÓN DE TODOS LOS PUZLES POR RECÁMARA (1 A 10)
+/// ============================================================================================================
+///
+/// --- NIVEL 1 DE LA PIRÁMIDE (BASE: 3 Plataformas - Niveles 0, 1 y 2) ---
+///
+/// • RECÁMARA 1:
+///   - Puzle 1 (Nivel 0 - Recarga del Tesoro Secreto):
+///     1) Buscar y recoger los 2 cofres de tesoro iniciales (Nivel 0 en 17,13 y Nivel 2 en 8,4) y la llave (16,6).
+///     2) Pisar la losa de presión (8,13) para abrir y cerrar la puerta secreta (14,13) 3 veces completas -> reaparece el cofre en (17,13).
+///   - Puzle 2 (Nivel 1 - Petrificación de la Momia):
+///     1) Recoger la llave (16,6) para despertar a la momia del Nivel 1.
+///     2) Saltar sobre la momia del Nivel 1 cuatro (4) veces consecutivas -> te persigue, cae por el foso al Nivel 0 y se petrifica -> aparece el Tesoro 3 en (17,13).
+///   - Puzle 3 (Nivel 2 - Trampa de la Momia Superior):
+///     1) Abrir la trampilla del Nivel 2 (13,5) pasando o saltando sobre ella y hacer caer a la momia del Nivel 2 tres (3) veces en total -> la momia es destruida y aparece el Tesoro 4 en (17,13).
+///
+/// • RECÁMARA 2:
+///   - Puzle 1 (Nivel 0 - Secuencia Estricta):
+///     1) Primero abrir la puerta secreta y recoger el tesoro del Nivel 0 (17,13) ANTES de tomar la llave.
+///     2) Segundo recoger la llave en el Nivel 1 (16,7).
+///     3) Tercero saltar al menos 1 vez sobre la momia del Nivel 1.
+///     4) Cuarto abrir y cerrar la puerta secreta (14,13) 2 veces -> reaparece el cofre en (17,13).
+///   - Puzle 2 (Nivel 1 y Nivel 0 - Doble Fase de Saltos):
+///     1) Con la momia de Nivel 1 despierta (tras tomar la llave), saltar sobre ella 2 veces consecutivas en el Nivel 1 -> entra en persecución y cae por el foso al Nivel 0.
+///     2) Una vez en el Nivel 0, volver a saltar sobre esa misma momia 2 veces más -> se petrifica y aparece el Tesoro 3 en (17,13).
+///   - Puzle 3 (Nivel 2 - Prerrequisito de Puzles 1 y 2 + Salto y Trampa x2):
+///     1) Completar primero el Puzle 1 y el Puzle 2 de la Recámara 2.
+///     2) Saltar 1 vez sobre la momia del Nivel 2 y hacerla caer por la trampa (11,6).
+///     3) Repetir el paso anterior una segunda vez (saltar sobre la momia del Nivel 2 y hacerla caer por la trampa, 2 veces en total) -> aparece el Tesoro 4 en (17,13).
+///
+/// • RECÁMARA 3:
+///   - Puzle 1 (Nivel 0 - Llave Primero + 4 Ciclos de Puerta):
+///     1) Recoger PRIMERO la llave (15,6) antes de tocar cualquier cofre de tesoro.
+///     2) Recoger los 2 cofres de tesoro (Nivel 0 en 17,13 y Nivel 2 en 6,4).
+///     3) Abrir y cerrar la puerta secreta (14,13) 4 veces pisando la losa (7,13) -> reaparece el cofre en (17,13).
+///   - Puzle 2 (Nivel 1 y Nivel 0 - 1 Salto Arriba y 3 Saltos Abajo):
+///     1) Tras despertar a la momia del Nivel 1 con la llave, saltar sobre ella 1 sola vez en el Nivel 1 -> te persigue y cae al Nivel 0.
+///     2) En el Nivel 0, saltar sobre la momia 3 veces más -> se petrifica y aparece el Tesoro 3 en (17,13).
+///   - Puzle 3 (Nivel 2 - Cofre Superior + 3 Saltos + 1 Caída en Trampa):
+///     1) Recoger primero el cofre de tesoro del Nivel 2 (6,4).
+///     2) Saltar 3 veces sobre la momia del Nivel 2.
+///     3) Hacerla caer 1 sola vez por la trampa del Nivel 2 (12,5) -> la momia es destruida y aparece el Tesoro 4 en (17,13).
+///
+/// • RECÁMARA 4:
+///   - Puzle 1 (Nivel 0 - Orden Libre con 2 Saltos de Momia + 1 Ciclo de Puerta):
+///     1) En cualquier orden: recoger los 2 cofres de tesoro (17,13 y 7,5), recoger la llave (15,7) y acumular al menos 2 saltos sobre cualquier momia.
+///     2) Abrir y cerrar la puerta secreta (14,13) 1 sola vez pisando la losa (9,13) -> reaparece el cofre en (17,13).
+///   - Puzle 2 (Nivel 1 y Nivel 0 - 3 Saltos Arriba y 1 Salto Abajo):
+///     1) Tras despertar a la momia del Nivel 1 con la llave, saltar sobre ella 3 veces en el Nivel 1 -> te persigue y cae al Nivel 0.
+///     2) En el Nivel 0, saltar sobre la momia 1 vez más -> se petrifica y aparece el Tesoro 3 en (17,13).
+///   - Puzle 3 (Nivel 2 - Llave + [2 Saltos + 1 Caída en Trampa] x 2):
+///     1) Tener recogida la llave (15,7).
+///     2) Saltar 2 veces sobre la momia del Nivel 2 y hacerla caer por la trampa (10,6).
+///     3) Repetir una segunda vez (2 saltos sobre la momia del Nivel 2 + 1 caída en la trampa, 2 ciclos en total) -> aparece el Tesoro 4 en (17,13).
+///
+/// --- NIVEL 2 DE LA PIRÁMIDE (4 Plataformas - Niveles 0, 1, 2 y 3; 3 Tesoros Base y 3 Momias) ---
+///
+/// • RECÁMARA 5 (Cámara secreta en Nivel 1 [14,10 -> 17,10], Momia 1 en Nivel 0 y Trampa extra en Nivel 3):
+///   - Puzle 1 (Nivel 0/1 - 3 Cofres + Llave + 3 Ciclos de Puerta):
+///     1) Pisar la losa en Nivel 0 (8,13) para abrir la puerta secreta en Nivel 1 (14,10) y recoger los 3 cofres (Nivel 1 en 17,10, Nivel 2 en 6,7 y Nivel 3 en 11,3) más la llave (11,9).
+///     2) Abrir y cerrar la puerta secreta 3 veces desde la losa (8,13) -> reaparece el cofre en la cámara de Nivel 1 (17,10).
+///   - Puzle 2 (Nivel 0 - Momia en Piso Base):
+///     1) Saltar 4 veces sobre la momia que patrulla directamente en el Nivel 0 -> se petrifica en el Nivel 0 y aparece el Tesoro 3 en la cámara secreta de Nivel 1 (17,10).
+///   - Puzle 3 (Nivel 2 - Trampa de Nivel 2 x3):
+///     1) Abrir la trampa del Nivel 2 (13,8) y hacer caer a la momia del Nivel 2 tres (3) veces -> aparece el Tesoro 4 en la cámara secreta de Nivel 1 (17,10).
+///   - Puzle 4 (Nivel 3 - Trampa de Nivel 3 + [Salto + Caída] x 2):
+///     1) Recoger primero el cofre del Nivel 3 (Treasure5 en 11,3).
+///     2) Saltar sobre la momia del Nivel 3 y hacerla caer por la trampa del Nivel 3 (9,4).
+///     3) Repetir una segunda vez (saltar sobre la momia del Nivel 3 y hacerla caer por la trampa 9,4) -> la momia de Nivel 3 es destruida y aparece el Tesoro 6 en (11,3).
+///
+/// • RECÁMARAS 6 y 7 (4 Plataformas - Niveles 0, 1, 2 y 3):
+///   - Puzle 1 (Nivel 0 - 3 Cofres + Llave + 3 Ciclos de Puerta):
+///     1) Recoger los 3 cofres iniciales (Nivel 0 en 17,13, Nivel 2 y Nivel 3) y la llave en Nivel 1.
+///     2) Abrir y cerrar la puerta secreta (14,13) 3 veces con la losa de Nivel 0 -> reaparece el cofre en (17,13).
+///   - Puzle 2 (Nivel 1 - 4 Saltos sobre Momia de Nivel 1):
+///     1) Tomar la llave para despertar a la momia del Nivel 1 y saltar sobre ella 4 veces -> cae por el foso al Nivel 0, se petrifica y aparece el Tesoro 3 en (17,13).
+///   - Puzle 3 (Nivel 2 - 3 Caídas en Trampa de Nivel 2):
+///     1) Hacer caer a la momia del Nivel 2 tres (3) veces por la trampa del Nivel 2 (13,8 en Recámara 6; 12,8 en Recámara 7) -> aparece el Tesoro 4 en (17,13).
+///
+/// --- NIVEL 3 DE LA PIRÁMIDE (5 Plataformas - Niveles 0, 1, 2, 3 y 4; 3 Puertas de Tesoros) ---
+///
+/// • RECÁMARAS 8 y 9 (5 Plataformas y 3 Puertas Conmutables para pasar a los Tesoros):
+///   - Acceso a los 3 Cofres Base mediante las 3 Puertas:
+///     • Puerta 1 en Nivel 0 (14,13): pisar Losa 1 (8,13 en Rec. 8; 7,13 en Rec. 9) para pasar al Cofre 1 (17,13).
+///     • Puerta 2 en Nivel 1 (4,10): pisar Losa 2 (7,10 en Rec. 8; 6,10 en Rec. 9) para pasar al Cofre 2 (2,10).
+///     • Puerta 3 en Nivel 2 (14,7): pisar Losa 3 (12,7) para pasar al Cofre 3 (17,7).
+///   - Puzle 1 (Nivel 0 - 3 Cofres tras las 3 Puertas + Llave + 3 Ciclos de Puerta 1):
+///     1) Abrir las 3 puertas con sus respectivas losas para recoger los 3 cofres (17,13, 2,10 y 17,7) y recoger la llave (15,9).
+///     2) Abrir y cerrar la Puerta 1 (14,13) 3 veces pisando la Losa 1 -> reaparece el cofre en (17,13).
+///   - Puzle 2 (Nivel 1 - 4 Saltos sobre Momia de Nivel 1):
+///     1) Tomar la llave (15,9) para despertar a la momia del Nivel 1 (que patrulla entre la Puerta 2 y el foso) y saltar sobre ella 4 veces -> cae al Nivel 0, se petrifica y aparece el Tesoro 3 en (17,13).
+///   - Puzle 3 (Nivel 2 - 3 Caídas en Trampa de Nivel 2):
+///     1) Hacer caer a la momia del Nivel 2 tres (3) veces por la trampa del Nivel 2 (6,8 en Recámara 8; 10,8 en Recámara 9) -> aparece el Tesoro 4 en (17,13).
+///
+/// --- NIVEL 4 DE LA PIRÁMIDE (CÚSPIDE) ---
+///
+/// • RECÁMARA 10 (Cúspide - Desbloqueo y Puzles Finales):
+///   - Requisito de Acceso:
+///     • Haber completado TODOS los puzles de las Recámaras 1, 2, 3, 4, 5, 6, 7, 8 y 9 (IsChamber10Unlocked == true).
+///   - Puzle 1 (Nivel 0): Recoger los 2 cofres (17,13 y 4,4) y la llave (16,6), y abrir/cerrar la puerta (14,13) 3 veces -> reaparece el cofre en (17,13).
+///   - Puzle 2 (Nivel 1): Despertar a la momia de Nivel 1 con la llave y saltarla 4 veces -> cae al Nivel 0, se petrifica y revela el Tesoro 3 en (17,13).
+///   - Puzle 3 (Nivel 2): Hacer caer a la momia de Nivel 2 tres (3) veces por la trampa (13,5) -> revela el Tesoro 4 en (17,13).
+/// ============================================================================================================
 /// </summary>
 public sealed class PuzzleManager
 {
@@ -47,8 +149,11 @@ public sealed class PuzzleManager
     public const string MSG_TRAP = "!TRAMPA! EL PISO SE HA ABIERTO";
     public const string MSG_TRAP2 = "!TRAMPA MORTAL! QUEDAS ATRAPADO";
     public const string MSG_CHAMBER10_LOCKED = "!CUSPIDE BLOQUEADA! COMPLETA PUZZLES 1-9";
+    public const int SCARAB_SPIN_DURATION_FRAMES = 60;
 
     private readonly bool[] _chamberPuzzlesCompleted = new bool[GameConstants.TOTAL_CHAMBERS + 1];
+    private readonly bool[] _puzzleSolvedState = new bool[4];
+    private readonly int[] _scarabSpinTimers = new int[4];
 
     public Treasure Treasure { get; }
     public Treasure Treasure2 { get; }
@@ -191,8 +296,67 @@ public sealed class PuzzleManager
         NotificationMessage = MSG_CHAMBER10_LOCKED;
     }
 
+    /// <summary>
+    /// Cantidad total de puzles (y escarabajos en el recuadro indicador) de la recámara actual:
+    /// 4 en la Recámara 5 (que incluye el puzle de la trampa de Nivel 3) y 3 en todas las demás recámaras.
+    /// </summary>
+    public int TotalChamberPuzzles => HasTrap3 ? 4 : 3;
+
+    /// <summary>
+    /// Cantidad de escarabajos que aún permanecen en el recuadro (puzles pendientes por resolver en la recámara actual).
+    /// </summary>
+    public int RemainingScarabsCount
+    {
+        get
+        {
+            int total = TotalChamberPuzzles;
+            int remaining = 0;
+            for (int i = 0; i < total; i++)
+            {
+                if (!IsChamberPuzzleSolved(i))
+                {
+                    remaining++;
+                }
+            }
+            return remaining;
+        }
+    }
+
+    public bool IsChamberPuzzleSolved(int puzzleIndex) => puzzleIndex switch
+    {
+        0 => HasSecretTreasureReloaded,
+        1 => IsTreasure3Spawned,
+        2 => IsTreasure4Spawned || IsTreasure4Pending,
+        3 => HasTrap3 && IsTreasure6Spawned,
+        _ => false
+    };
+
+    public int GetScarabSpinTimer(int puzzleIndex) =>
+        (puzzleIndex >= 0 && puzzleIndex < 4) ? _scarabSpinTimers[puzzleIndex] : 0;
+
+    /// <summary>
+    /// Un escarabajo es visible en el recuadro mientras su puzle no haya sido resuelto
+    /// o mientras esté ejecutando su animación de giro antes de desaparecer.
+    /// </summary>
+    public bool IsScarabVisible(int puzzleIndex)
+    {
+        if (puzzleIndex < 0 || puzzleIndex >= TotalChamberPuzzles)
+            return false;
+        return !_puzzleSolvedState[puzzleIndex] || _scarabSpinTimers[puzzleIndex] > 0;
+    }
+
     private void UpdateChamberCompletionStatus()
     {
+        int total = TotalChamberPuzzles;
+        for (int i = 0; i < total; i++)
+        {
+            if (IsChamberPuzzleSolved(i) && !_puzzleSolvedState[i])
+            {
+                _puzzleSolvedState[i] = true;
+                _scarabSpinTimers[i] = SCARAB_SPIN_DURATION_FRAMES;
+            }
+        }
+
         if (CurrentChamber >= 1 && CurrentChamber <= GameConstants.TOTAL_CHAMBERS && AreAllChamberPuzzlesCompleted)
         {
             _chamberPuzzlesCompleted[CurrentChamber] = true;
@@ -358,6 +522,10 @@ public sealed class PuzzleManager
         switch (normalized)
         {
             case 1:
+                // Recámara 1:
+                // - Puzle 1: buscar los 2 tesoros (17,13 y 8,4) y la llave (16,6), luego abrir y cerrar la puerta (14,13) 3 veces.
+                // - Puzle 2: despertar momia Nivel 1 con la llave, saltarla 4 veces para que caiga al Nivel 0 y se petrifique.
+                // - Puzle 3: hacer caer a la momia de Nivel 2 por la trampa (13,5) 3 veces.
                 StoneCoord = new(8, 13);
                 Treasure2Coord = new(8, 4);
                 ExitDoorCoord = new(18, 4);
@@ -366,6 +534,10 @@ public sealed class PuzzleManager
                 Trap2Coord = new(13, 5);
                 break;
             case 2:
+                // Recámara 2:
+                // - Puzle 1: 1) buscar tesoro Nivel 0 (17,13), 2) luego la llave (16,7), 3) saltar 1 vez momia Nivel 1, 4) abrir y cerrar puerta 2 veces.
+                // - Puzle 2: saltar 2 veces consecutivas sobre momia Nivel 1 (cae al Nivel 0) y luego saltarla 2 veces más en Nivel 0.
+                // - Puzle 3: completar primero Puzles 1 y 2, luego [saltar 1 vez momia Nivel 2 + hacerla caer en trampa (11,6)] repetir 2 veces.
                 StoneCoord = new(8, 13);
                 Treasure2Coord = new(8, 5);
                 ExitDoorCoord = new(1, 5);
@@ -374,6 +546,10 @@ public sealed class PuzzleManager
                 Trap2Coord = new(11, 6);
                 break;
             case 3:
+                // Recámara 3:
+                // - Puzle 1: 1) buscar primero la llave (15,6), 2) luego los 2 tesoros (17,13 y 6,4), 3) abrir y cerrar la puerta 4 veces.
+                // - Puzle 2: saltar 1 vez sobre momia Nivel 1 (cae al Nivel 0) y luego saltarla 3 veces en Nivel 0.
+                // - Puzle 3: recoger tesoro Nivel 2 (6,4), saltar 3 veces momia Nivel 2 y hacerla caer 1 vez en la trampa (12,5).
                 StoneCoord = new(7, 13);
                 Treasure2Coord = new(6, 4);
                 ExitDoorCoord = new(18, 4);
@@ -382,6 +558,10 @@ public sealed class PuzzleManager
                 Trap2Coord = new(12, 5);
                 break;
             case 4:
+                // Recámara 4:
+                // - Puzle 1: buscar los 2 tesoros (17,13 y 7,5), la llave (15,7) y saltar 2 veces cualquier momia (orden libre), luego abrir y cerrar la puerta 1 vez.
+                // - Puzle 2: saltar 3 veces sobre momia Nivel 1 (cae al Nivel 0) y luego saltarla 1 vez en Nivel 0.
+                // - Puzle 3: tener la llave (15,7), luego [saltar 2 veces momia Nivel 2 + hacerla caer en trampa (10,6)] repetir 2 veces.
                 StoneCoord = new(9, 13);
                 Treasure2Coord = new(7, 5);
                 ExitDoorCoord = new(1, 5);
@@ -390,6 +570,11 @@ public sealed class PuzzleManager
                 Trap2Coord = new(10, 6);
                 break;
             case 5:
+                // Recámara 5 (4 plataformas; cámara secreta en Nivel 1 y momia en Nivel 0):
+                // - Puzle 1: buscar los 3 tesoros (17,10, 6,7 y 11,3) y la llave (11,9), luego abrir y cerrar la puerta de Nivel 1 (14,10) 3 veces desde la losa (8,13).
+                // - Puzle 2: saltar 4 veces sobre la momia que patrulla en el Nivel 0 para petrificarla.
+                // - Puzle 3: hacer caer a la momia de Nivel 2 por la trampa (13,8) 3 veces.
+                // - Puzle 4 (Nivel 3): recoger tesoro de Nivel 3 (11,3), luego [saltar 1 vez momia Nivel 3 + hacerla caer en trampa (9,4)] repetir 2 veces.
                 StoneCoord = new(8, 13);
                 WallCoord = new(14, 10);
                 TreasureCoord = new(17, 10);
@@ -405,6 +590,10 @@ public sealed class PuzzleManager
                 Trap3Coord = new(9, 4);
                 break;
             case 6:
+                // Recámara 6 (4 plataformas):
+                // - Puzle 1: buscar los 3 tesoros (17,13, 8,7 y 12,3) y la llave (16,9), luego abrir y cerrar la puerta (14,13) 3 veces.
+                // - Puzle 2: despertar momia Nivel 1 con la llave, saltarla 4 veces para que caiga al Nivel 0 y se petrifique.
+                // - Puzle 3: hacer caer a la momia de Nivel 2 por la trampa (13,8) 3 veces.
                 StoneCoord = new(7, 13);
                 Treasure2Coord = new(8, 7);
                 Treasure5Coord = new(12, 3);
@@ -414,6 +603,10 @@ public sealed class PuzzleManager
                 Trap2Coord = new(13, 8);
                 break;
             case 7:
+                // Recámara 7 (4 plataformas):
+                // - Puzle 1: buscar los 3 tesoros (17,13, 7,7 y 10,3) y la llave (15,9), luego abrir y cerrar la puerta (14,13) 3 veces.
+                // - Puzle 2: despertar momia Nivel 1 con la llave, saltarla 4 veces para que caiga al Nivel 0 y se petrifique.
+                // - Puzle 3: hacer caer a la momia de Nivel 2 por la trampa (12,8) 3 veces.
                 StoneCoord = new(9, 13);
                 Treasure2Coord = new(7, 7);
                 Treasure5Coord = new(10, 3);
@@ -423,6 +616,10 @@ public sealed class PuzzleManager
                 Trap2Coord = new(12, 8);
                 break;
             case 8:
+                // Recámara 8 (5 plataformas y 3 puertas de tesoros):
+                // - Puzle 1: abrir Puerta 1 (14,13 con losa 8,13), Puerta 2 (4,10 con losa 7,10) y Puerta 3 (14,7 con losa 12,7) para buscar los 3 tesoros (17,13, 2,10 y 17,7) + llave (15,9), luego abrir y cerrar Puerta 1 (14,13) 3 veces.
+                // - Puzle 2: despertar momia Nivel 1 con la llave, saltarla 4 veces para que caiga al Nivel 0 y se petrifique.
+                // - Puzle 3: hacer caer a la momia de Nivel 2 por la trampa (6,8) 3 veces.
                 StoneCoord = new(8, 13);
                 Stone2Coord = new(7, 10);
                 Wall2Coord = new(4, 10);
@@ -436,6 +633,10 @@ public sealed class PuzzleManager
                 Trap2Coord = new(6, 8);
                 break;
             case 9:
+                // Recámara 9 (5 plataformas y 3 puertas de tesoros):
+                // - Puzle 1: abrir Puerta 1 (14,13 con losa 7,13), Puerta 2 (4,10 con losa 6,10) y Puerta 3 (14,7 con losa 12,7) para buscar los 3 tesoros (17,13, 2,10 y 17,7) + llave (15,9), luego abrir y cerrar Puerta 1 (14,13) 3 veces.
+                // - Puzle 2: despertar momia Nivel 1 con la llave, saltarla 4 veces para que caiga al Nivel 0 y se petrifique.
+                // - Puzle 3: hacer caer a la momia de Nivel 2 por la trampa (10,8) 3 veces.
                 StoneCoord = new(7, 13);
                 Stone2Coord = new(6, 10);
                 Wall2Coord = new(4, 10);
@@ -449,6 +650,10 @@ public sealed class PuzzleManager
                 Trap2Coord = new(10, 8);
                 break;
             case 10:
+                // Recámara 10 (Cúspide - Requiere haber completado todos los puzles de las Recámaras 1 a 9):
+                // - Puzle 1: buscar los 2 tesoros (17,13 y 4,4) y la llave (16,6), luego abrir y cerrar la puerta (14,13) 3 veces.
+                // - Puzle 2: despertar momia Nivel 1 con la llave, saltarla 4 veces para que caiga al Nivel 0 y se petrifique.
+                // - Puzle 3: hacer caer a la momia de Nivel 2 por la trampa (13,5) 3 veces.
                 StoneCoord = new(8, 13);
                 Treasure2Coord = new(4, 4);
                 ExitDoorCoord = new(18, 4);
@@ -555,6 +760,8 @@ public sealed class PuzzleManager
         Level3MummyJumpCount = 0;
         _wasJumpingOverMummy3 = false;
         JustCollectedTreasure = false;
+        Array.Clear(_puzzleSolvedState, 0, _puzzleSolvedState.Length);
+        Array.Clear(_scarabSpinTimers, 0, _scarabSpinTimers.Length);
         Treasure.Reset();
         Treasure2.Reset();
         Treasure3.Reset();
@@ -1340,6 +1547,14 @@ public sealed class PuzzleManager
         }
 
         UpdateChamberCompletionStatus();
+
+        for (int i = 0; i < 4; i++)
+        {
+            if (_scarabSpinTimers[i] > 0)
+            {
+                _scarabSpinTimers[i]--;
+            }
+        }
 
         if (NotificationTimer > 0)
         {

@@ -109,6 +109,7 @@ public sealed class PuzzleManager
     public int Level2MummyJumpCount { get; private set; }
     private bool _wasJumpingOverMummy2;
     public int Score { get; private set; }
+    public bool JustCollectedTreasure { get; private set; }
     public int NotificationTimer { get; private set; }
     public string NotificationMessage { get; private set; } = "";
 
@@ -553,6 +554,7 @@ public sealed class PuzzleManager
         HasJumpedOverLevel3Mummy = false;
         Level3MummyJumpCount = 0;
         _wasJumpingOverMummy3 = false;
+        JustCollectedTreasure = false;
         Treasure.Reset();
         Treasure2.Reset();
         Treasure3.Reset();
@@ -576,6 +578,8 @@ public sealed class PuzzleManager
     {
         ArgumentNullException.ThrowIfNull(grid);
         ArgumentNullException.ThrowIfNull(player);
+
+        JustCollectedTreasure = false;
 
         // 1. Detección AABB de contacto entre el arqueólogo y la piedra rúnica
         float stoneLeft = StoneCoord.X * GameConstants.TILE_SIZE;
@@ -709,6 +713,7 @@ public sealed class PuzzleManager
                 NotificationTimer = 180; // 3 segundos a 60 FPS
                 NotificationMessage = MSG_TREASURE;
                 collectedTreasureThisFrame = true;
+                JustCollectedTreasure = true;
 
                 // En Recámara 2, el paso 1 del Puzle 1 es agarrar primero el tesoro del Nivel 0
                 if (CurrentChamber == 2 && Chamber2Puzzle1Stage == 0 && !Key.IsCollected)
@@ -737,6 +742,7 @@ public sealed class PuzzleManager
                 Score += 1000;
                 NotificationTimer = 180; // 3 segundos a 60 FPS
                 NotificationMessage = MSG_TREASURE;
+                JustCollectedTreasure = true;
             }
         }
 
@@ -761,6 +767,7 @@ public sealed class PuzzleManager
                 NotificationTimer = 180;
                 NotificationMessage = MSG_TREASURE;
                 collectedTreasure5ThisFrame = true;
+                JustCollectedTreasure = true;
             }
         }
 
@@ -783,6 +790,7 @@ public sealed class PuzzleManager
                 Score += 1000;
                 NotificationTimer = 180;
                 NotificationMessage = MSG_TREASURE4;
+                JustCollectedTreasure = true;
             }
         }
 
@@ -806,6 +814,7 @@ public sealed class PuzzleManager
                 NotificationTimer = 180;
                 NotificationMessage = MSG_TREASURE3;
                 collectedTreasureThisFrame = true;
+                JustCollectedTreasure = true;
             }
         }
 
@@ -829,6 +838,7 @@ public sealed class PuzzleManager
                 NotificationTimer = 180;
                 NotificationMessage = MSG_TREASURE4;
                 collectedTreasureThisFrame = true;
+                JustCollectedTreasure = true;
             }
         }
 

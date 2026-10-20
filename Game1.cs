@@ -2,6 +2,7 @@ using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using RetroGamePiramid.Audio;
 using RetroGamePiramid.Core;
 using RetroGamePiramid.Entities;
 using RetroGamePiramid.Graphics;
@@ -30,6 +31,8 @@ public class Game1 : Game
     private Mummy _mummyPlatform1 = null!;
     private Mummy _mummyPlatform3 = null!;
     private MummyRenderer _mummyRenderer = null!;
+    private EgyptianAmbientMusic _ambientMusic = null!;
+    private RetroSoundEffects _soundEffects = null!;
 
     private GameScreen _currentScreen = GameScreen.TitleMenu;
     private int _frameCounter;
@@ -177,10 +180,14 @@ public class Game1 : Game
             initiallyActive: false);
 
         _mummyRenderer = new MummyRenderer(GraphicsDevice);
+        _ambientMusic = new EgyptianAmbientMusic();
+        _soundEffects = new RetroSoundEffects();
     }
 
     protected override void UnloadContent()
     {
+        _soundEffects?.Dispose();
+        _ambientMusic?.Dispose();
         _mummyRenderer?.Dispose();
         _puzzleRenderer?.Dispose();
         _hieroglyphRenderer?.Dispose();
@@ -201,8 +208,16 @@ public class Game1 : Game
             Exit();
         }
 
+        // Tecla M para silenciar o reactivar la música ambiental egipcia en cualquier momento
+        if (keyboard.IsKeyDown(Keys.M) && !_prevKeyboardState.IsKeyDown(Keys.M))
+        {
+            _ambientMusic.ToggleMute();
+            _soundEffects.IsMuted = _ambientMusic.IsMuted;
+        }
+
         if (_currentScreen == GameScreen.TitleMenu)
         {
+            _ambientMusic.Pause();
             _titleMenu.IsChamber10Unlocked = _puzzleManager.IsChamber10Unlocked;
             bool up = keyboard.IsKeyDown(Keys.Up) || keyboard.IsKeyDown(Keys.W);
             bool down = keyboard.IsKeyDown(Keys.Down) || keyboard.IsKeyDown(Keys.S);
@@ -294,6 +309,8 @@ public class Game1 : Game
         }
         else if (_currentScreen == GameScreen.Playing)
         {
+            _ambientMusic.Play();
+
             // Gestión de la pantalla interactiva al finalizar la recámara
             if (_puzzleManager.IsChamberCompleted)
             {
@@ -377,8 +394,18 @@ public class Game1 : Game
                 _respawnTimer = 0;
                 // Muestreo de entrada y actualización del jugador, momias y puzle (cero allocations)
                 PlayerInput input = PlayerInput.FromKeyboard(keyboard);
+                PlayerState prevPlayerState = _player.State;
                 _player.Update(_roomGrid, in input);
+                if (prevPlayerState != PlayerState.Jumping && _player.State == PlayerState.Jumping)
+                {
+                    _soundEffects.PlayJump();
+                }
+
                 _puzzleManager.Update(_roomGrid, _player, _mummy, _mummyPlatform3);
+                if (_puzzleManager.JustCollectedTreasure)
+                {
+                    _soundEffects.PlayTreasure();
+                }
 
                 // Al tomar la llave se despierta la momia guardiana de la plataforma 1
                 if (_puzzleManager.HasKey && !_mummyPlatform1.IsAwake && _mummyPlatform1.IsActive)
@@ -449,6 +476,7 @@ public class Game1 : Game
                 {
                     _wasJumpingOverMummy = false;
                     _mummyPlatform1.ResetJumpOver();
+                    _soundEffects.PlayLoseLife();
                 }
             }
         }
